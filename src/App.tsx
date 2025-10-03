@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Button, Col, Input, Row } from "antd";
 import { create } from "zustand";
-import SortedList from "./components/SortedList";
-import UnsortedList from "./components/UnsortedList";
+import DraggableList from "./components/DraggableList";
 
 interface ListStuff {
   list: {
@@ -115,19 +114,23 @@ function App() {
     <>
       <Row>
         <Col span={12}>
-          <SortedList
+          <DraggableList
             items={list}
             onUpdateRank={updateRank}
             onDelete={deleteItem}
             onReorder={reorderSortedItems}
+            listType="sorted"
+            title="Sorted"
           />
         </Col>
         <Col span={12}>
-          <UnsortedList
+          <DraggableList
             items={list}
             onUpdateRank={updateRank}
             onDelete={deleteItem}
             onReorder={reorderUnsortedItems}
+            listType="unsorted"
+            title="Unsorted"
           />
         </Col>
       </Row>

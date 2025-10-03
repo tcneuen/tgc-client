@@ -17,6 +17,13 @@ import {
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+interface ListItem {
+  id: number;
+  name: string;
+  description: string;
+  rank: number;
+}
+
 interface SortableItemProps {
   item: ListItem;
   index: number;
@@ -24,6 +31,7 @@ interface SortableItemProps {
   onInputChange: (itemId: number, value: string) => void;
   onUpdateRank: (itemId: number) => void;
   onDelete: (id: number) => void;
+  titleFormatter: (item: ListItem, index: number) => string;
 }
 
 function SortableItem({
@@ -33,6 +41,7 @@ function SortableItem({
   onInputChange,
   onUpdateRank,
   onDelete,
+  titleFormatter,
 }: SortableItemProps) {
   const {
     attributes,
@@ -73,9 +82,7 @@ function SortableItem({
             >
               ⋮⋮
             </div>
-            <span>
-              #{index + 1} - Rank {item.rank}: {item.name}
-            </span>
+            <span>{titleFormatter(item, index)}</span>
           </div>
         }
       >
@@ -116,33 +123,30 @@ function SortableItem({
   );
 }
 
-interface ListItem {
-  id: number;
-  name: string;
-  description: string;
-  rank: number;
-}
-
-interface SortedListProps {
+interface DraggableListProps {
   items: ListItem[];
   onUpdateRank: (id: number, rank: number) => void;
   onDelete: (id: number) => void;
   onReorder: (activeId: number, overId: number) => void;
+  listType: 'sorted' | 'unsorted';
+  title: string;
 }
 
-export default function SortedList({
+export default function DraggableList({
   items,
   onUpdateRank,
   onDelete,
   onReorder,
-}: SortedListProps) {
+  listType,
+  title,
+}: DraggableListProps) {
   const [rankInputs, setRankInputs] = useState<{ [key: number]: string }>({});
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   const handleInputChange = (itemId: number, value: string) => {
@@ -173,9 +177,19 @@ export default function SortedList({
     }
   };
 
-  const sortedItems = [...items]
-    .filter((item) => item.rank !== 0)
-    .sort((a, b) => a.rank - b.rank);
+  // Filter and sort items based on list type
+  const filteredItems = listType === 'sorted' 
+    ? [...items].filter((item) => item.rank !== 0).sort((a, b) => a.rank - b.rank)
+    : [...items].filter((item) => item.rank === 0);
+
+  // Title formatter based on list type
+  const titleFormatter = (item: ListItem, index: number): string => {
+    if (listType === 'sorted') {
+      return `#${index + 1} - Rank ${item.rank}: ${item.name}`;
+    } else {
+      return `#${index + 1}: ${item.name}`;
+    }
+  };
 
   return (
     <DndContext
@@ -184,14 +198,14 @@ export default function SortedList({
       onDragEnd={handleDragEnd}
     >
       <SortableContext
-        items={sortedItems.map((item) => item.id)}
+        items={filteredItems.map((item) => item.id)}
         strategy={verticalListSortingStrategy}
       >
         <List
-          header={<div>Sorted (Drag to reorder)</div>}
-          footer={<div>{sortedItems.length}</div>}
+          header={<div>{title} (Drag to reorder)</div>}
+          footer={<div>{filteredItems.length}</div>}
           bordered
-          dataSource={sortedItems}
+          dataSource={filteredItems}
           renderItem={(item, index) => (
             <SortableItem
               key={item.id}
@@ -201,6 +215,7 @@ export default function SortedList({
               onInputChange={handleInputChange}
               onUpdateRank={handleUpdateRank}
               onDelete={onDelete}
+              titleFormatter={titleFormatter}
             />
           )}
         />
