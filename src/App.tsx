@@ -1,26 +1,31 @@
 import { useState } from "react";
-import { Button, Card, Col, Input, List, Row } from "antd";
+import { Button, Col, Input, Row } from "antd";
 import { create } from "zustand";
+import SortedList from "./components/SortedList";
+import UnsortedList from "./components/UnsortedList";
 
 interface ListStuff {
   list: {
     id: number;
     name: string;
+    description: string;
     rank: number;
   }[];
-  addList: (name: string) => void;
+  addList: (name: string, description: string) => void;
   updateRank: (id: number, rank: number) => void;
+  deleteItem: (id: number) => void;
 }
 
 const useBearStore = create<ListStuff>((set) => ({
   list: [],
-  addList: (name) =>
+  addList: (name, description) =>
     set((state) => ({
       list: [
         ...state.list,
         {
           id: state.list.length + 1,
           name,
+          description,
           rank: 0,
         },
       ],
@@ -31,89 +36,68 @@ const useBearStore = create<ListStuff>((set) => ({
         item.id === id ? { ...item, rank } : item,
       ),
     })),
+  deleteItem: (id) =>
+    set((state) => ({
+      list: state.list.filter((item) => item.id !== id),
+    })),
 }));
 
 function App() {
-  const [count, setCount] = useState(0);
-  const { list, addList, updateRank } = useBearStore();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const { list, addList, updateRank, deleteItem } = useBearStore();
 
-  const unsortedList = [...list].filter((item) => item.rank === 0);
-  const sortedList = [...list]
-    .filter((item) => item.rank !== 0)
-    .sort((a, b) => a.rank - b.rank);
+  const handleAddItem = () => {
+    if (name.trim() && description.trim()) {
+      addList(name.trim(), description.trim());
+      setName("");
+      setDescription("");
+    }
+  };
+
   return (
     <>
       <Row>
         <Col span={12}>
-          <List
-            header={<div>Sorted</div>}
-            footer={<div>{sortedList.length}</div>}
-            bordered
-            dataSource={sortedList}
-            renderItem={(item) => (
-              <List.Item>
-                <Card
-                  title={
-                    <>
-                      {item.rank} {item.name}
-                    </>
-                  }
-                >
-                  <Input
-                    defaultValue={item.rank === 0 ? "" : item.rank}
-                    id={item.id.toString()}
-                    placeholder="Rank"
-                    onBlur={(event) => {
-                      // Access the input value from event.target.value
-                      const rank = event.target.value;
-                      updateRank(item.id, Number(rank));
-                    }}
-                  />
-                </Card>
-              </List.Item>
-            )}
+          <SortedList
+            items={list}
+            onUpdateRank={updateRank}
+            onDelete={deleteItem}
           />
         </Col>
         <Col span={12}>
-          <List
-            header={<div>Unsorted</div>}
-            footer={<div>{unsortedList.length}</div>}
-            bordered
-            dataSource={unsortedList}
-            renderItem={(item) => (
-              <List.Item>
-                <Card
-                  title={
-                    <>
-                      {item.rank} {item.name}
-                    </>
-                  }
-                >
-                  <Input
-                    defaultValue={item.rank === 0 ? "" : item.rank}
-                    placeholder="Rank"
-                    onBlur={(event) => {
-                      // Access the input value from event.target.value
-                      const rank = event.target.value;
-                      updateRank(item.id, Number(rank));
-                    }}
-                  />
-                </Card>
-              </List.Item>
-            )}
+          <UnsortedList
+            items={list}
+            onUpdateRank={updateRank}
+            onDelete={deleteItem}
           />
         </Col>
       </Row>
 
-      <Row>
-        <Col span={12}>
+      <Row gutter={16} style={{ padding: "16px" }}>
+        <Col span={8}>
+          <Input
+            placeholder="Item name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onPressEnter={handleAddItem}
+          />
+        </Col>
+        <Col span={8}>
+          <Input
+            placeholder="Item description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onPressEnter={handleAddItem}
+          />
+        </Col>
+        <Col span={8}>
           <Button
-            onClick={() => {
-              addList(`test ${count}`);
-              setCount((count) => count + 1);
-            }}
+            type="primary"
+            onClick={handleAddItem}
+            disabled={!name.trim() || !description.trim()}
           >
-            add list
+            Add Item
           </Button>
         </Col>
       </Row>
