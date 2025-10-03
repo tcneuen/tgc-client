@@ -1,17 +1,8 @@
 import { useState } from "react";
 import { Button, Card, Input, List } from "antd";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
+import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
@@ -127,27 +118,24 @@ interface DraggableListProps {
   items: ListItem[];
   onUpdateRank: (id: number, rank: number) => void;
   onDelete: (id: number) => void;
-  onReorder: (activeId: number, overId: number) => void;
-  listType: 'sorted' | 'unsorted';
+  listType: "sorted" | "unsorted";
   title: string;
+  droppableId: string;
 }
 
 export default function DraggableList({
   items,
   onUpdateRank,
   onDelete,
-  onReorder,
   listType,
   title,
+  droppableId,
 }: DraggableListProps) {
   const [rankInputs, setRankInputs] = useState<{ [key: number]: string }>({});
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const { setNodeRef: setDroppableRef } = useDroppable({
+    id: droppableId,
+  });
 
   const handleInputChange = (itemId: number, value: string) => {
     setRankInputs((prev) => ({
@@ -169,22 +157,17 @@ export default function DraggableList({
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      onReorder(Number(active.id), Number(over.id));
-    }
-  };
-
   // Filter and sort items based on list type
-  const filteredItems = listType === 'sorted' 
-    ? [...items].filter((item) => item.rank !== 0).sort((a, b) => a.rank - b.rank)
-    : [...items].filter((item) => item.rank === 0);
+  const filteredItems =
+    listType === "sorted"
+      ? [...items]
+          .filter((item) => item.rank !== 0)
+          .sort((a, b) => a.rank - b.rank)
+      : [...items].filter((item) => item.rank === 0);
 
   // Title formatter based on list type
   const titleFormatter = (item: ListItem, index: number): string => {
-    if (listType === 'sorted') {
+    if (listType === "sorted") {
       return `#${index + 1} - Rank ${item.rank}: ${item.name}`;
     } else {
       return `#${index + 1}: ${item.name}`;
@@ -192,17 +175,13 @@ export default function DraggableList({
   };
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
+    <div ref={setDroppableRef}>
       <SortableContext
         items={filteredItems.map((item) => item.id)}
         strategy={verticalListSortingStrategy}
       >
         <List
-          header={<div>{title} (Drag to reorder)</div>}
+          header={<div>{title} (Drag between lists)</div>}
           footer={<div>{filteredItems.length}</div>}
           bordered
           dataSource={filteredItems}
@@ -220,6 +199,6 @@ export default function DraggableList({
           )}
         />
       </SortableContext>
-    </DndContext>
+    </div>
   );
 }

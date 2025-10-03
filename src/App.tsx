@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { Button, Col, Input, Row } from "antd";
 import { create } from "zustand";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import DraggableList from "./components/DraggableList";
 
 interface ListStuff {
@@ -15,6 +25,8 @@ interface ListStuff {
   deleteItem: (id: number) => void;
   reorderSortedItems: (activeId: number, overId: number) => void;
   reorderUnsortedItems: (activeId: number, overId: number) => void;
+  moveToSorted: (itemId: number, targetIndex?: number) => void;
+  moveToUnsorted: (itemId: number, targetIndex?: number) => void;
 }
 
 const useBearStore = create<ListStuff>((set) => ({
@@ -88,6 +100,59 @@ const useBearStore = create<ListStuff>((set) => ({
 
       return { list: [...reorderedUnsorted, ...sortedItems] };
     }),
+  moveToSorted: (itemId, targetIndex) =>
+    set((state) => {
+      const item = state.list.find((item) => item.id === itemId);
+      if (!item || item.rank !== 0) return state; // Only move unsorted items
+
+      const sortedItems = state.list
+        .filter((item) => item.rank !== 0)
+        .sort((a, b) => a.rank - b.rank);
+
+      // Determine the new rank
+      let newRank: number;
+      if (targetIndex !== undefined && targetIndex < sortedItems.length) {
+        // Insert at specific position
+        newRank = targetIndex + 1;
+        // Update ranks of items that need to be shifted
+        const updatedList = state.list.map((listItem) => {
+          if (listItem.id === itemId) {
+            return { ...listItem, rank: newRank };
+          }
+          if (listItem.rank !== 0 && listItem.rank >= newRank) {
+            return { ...listItem, rank: listItem.rank + 1 };
+          }
+          return listItem;
+        });
+        return { list: updatedList };
+      } else {
+        // Add to end of sorted list
+        newRank = sortedItems.length + 1;
+        return {
+          list: state.list.map((listItem) =>
+            listItem.id === itemId ? { ...listItem, rank: newRank } : listItem,
+          ),
+        };
+      }
+    }),
+  moveToUnsorted: (itemId) =>
+    set((state) => {
+      const item = state.list.find((item) => item.id === itemId);
+      if (!item || item.rank === 0) return state; // Only move ranked items
+
+      // Set rank to 0 and adjust other ranks
+      const updatedList = state.list.map((listItem) => {
+        if (listItem.id === itemId) {
+          return { ...listItem, rank: 0 };
+        }
+        if (listItem.rank > item.rank) {
+          return { ...listItem, rank: listItem.rank - 1 };
+        }
+        return listItem;
+      });
+
+      return { list: updatedList };
+    }),
 }));
 
 function App() {
@@ -100,7 +165,16 @@ function App() {
     deleteItem,
     reorderSortedItems,
     reorderUnsortedItems,
+    moveToSorted,
+    moveToUnsorted,
   } = useBearStore();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   const handleAddItem = () => {
     if (name.trim() && description.trim()) {
@@ -110,17 +184,61 @@ function App() {
     }
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over) return;
+
+    const activeId = Number(active.id);
+    const overId = over.id;
+
+    // Check if dropping on a droppable area (list container)
+    if (overId === "sorted-list") {
+      // Moving to sorted list
+      const activeItem = list.find((item) => item.id === activeId);
+      if (activeItem && activeItem.rank === 0) {
+        moveToSorted(activeId);
+      }
+    } else if (overId === "unsorted-list") {
+      // Moving to unsorted list
+      const activeItem = list.find((item) => item.id === activeId);
+      if (activeItem && activeItem.rank !== 0) {
+        moveToUnsorted(activeId);
+      }
+    } else {
+      // Dropping on another item (reordering within same list)
+      const overItemId = Number(overId);
+      const activeItem = list.find((item) => item.id === activeId);
+      const overItem = list.find((item) => item.id === overItemId);
+
+      if (activeItem && overItem) {
+        // Same list reordering
+        if ((activeItem.rank === 0) === (overItem.rank === 0)) {
+          if (activeItem.rank === 0) {
+            reorderUnsortedItems(activeId, overItemId);
+          } else {
+            reorderSortedItems(activeId, overItemId);
+          }
+        }
+      }
+    }
+  };
+
   return (
-    <>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
       <Row>
         <Col span={12}>
           <DraggableList
             items={list}
             onUpdateRank={updateRank}
             onDelete={deleteItem}
-            onReorder={reorderSortedItems}
             listType="sorted"
             title="Sorted"
+            droppableId="sorted-list"
           />
         </Col>
         <Col span={12}>
@@ -128,9 +246,9 @@ function App() {
             items={list}
             onUpdateRank={updateRank}
             onDelete={deleteItem}
-            onReorder={reorderUnsortedItems}
             listType="unsorted"
             title="Unsorted"
+            droppableId="unsorted-list"
           />
         </Col>
       </Row>
@@ -162,7 +280,7 @@ function App() {
           </Button>
         </Col>
       </Row>
-    </>
+    </DndContext>
   );
 }
 
