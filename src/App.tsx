@@ -14,6 +14,8 @@ interface ListStuff {
   addList: (name: string, description: string) => void;
   updateRank: (id: number, rank: number) => void;
   deleteItem: (id: number) => void;
+  reorderSortedItems: (activeId: number, overId: number) => void;
+  reorderUnsortedItems: (activeId: number, overId: number) => void;
 }
 
 const useBearStore = create<ListStuff>((set) => ({
@@ -40,12 +42,66 @@ const useBearStore = create<ListStuff>((set) => ({
     set((state) => ({
       list: state.list.filter((item) => item.id !== id),
     })),
+  reorderSortedItems: (activeId, overId) =>
+    set((state) => {
+      const sortedItems = state.list
+        .filter((item) => item.rank !== 0)
+        .sort((a, b) => a.rank - b.rank);
+
+      const activeIndex = sortedItems.findIndex((item) => item.id === activeId);
+      const overIndex = sortedItems.findIndex((item) => item.id === overId);
+
+      if (activeIndex === -1 || overIndex === -1) return state;
+
+      // Create new array with reordered items
+      const reorderedItems = [...sortedItems];
+      const [removed] = reorderedItems.splice(activeIndex, 1);
+      reorderedItems.splice(overIndex, 0, removed);
+
+      // Update ranks based on new order
+      const updatedList = state.list.map((item) => {
+        if (item.rank === 0) return item; // Keep unsorted items unchanged
+
+        const newIndex = reorderedItems.findIndex(
+          (reordered) => reordered.id === item.id,
+        );
+        return newIndex !== -1 ? { ...item, rank: newIndex + 1 } : item;
+      });
+
+      return { list: updatedList };
+    }),
+  reorderUnsortedItems: (activeId, overId) =>
+    set((state) => {
+      const unsortedItems = state.list.filter((item) => item.rank === 0);
+      const sortedItems = state.list.filter((item) => item.rank !== 0);
+
+      const activeIndex = unsortedItems.findIndex(
+        (item) => item.id === activeId,
+      );
+      const overIndex = unsortedItems.findIndex((item) => item.id === overId);
+
+      if (activeIndex === -1 || overIndex === -1) return state;
+
+      // Reorder unsorted items
+      const reorderedUnsorted = [...unsortedItems];
+      const [removed] = reorderedUnsorted.splice(activeIndex, 1);
+      reorderedUnsorted.splice(overIndex, 0, removed);
+
+      return { list: [...reorderedUnsorted, ...sortedItems] };
+    }),
 }));
 
 function App() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const { list, addList, updateRank, deleteItem } = useBearStore();
+  const {
+    list,
+    addList,
+    updateRank,
+    deleteItem,
+    reorderSortedItems,
+    reorderUnsortedItems,
+  } = useBearStore();
 
   const handleAddItem = () => {
     if (name.trim() && description.trim()) {
@@ -63,6 +119,7 @@ function App() {
             items={list}
             onUpdateRank={updateRank}
             onDelete={deleteItem}
+            onReorder={reorderSortedItems}
           />
         </Col>
         <Col span={12}>
@@ -70,6 +127,7 @@ function App() {
             items={list}
             onUpdateRank={updateRank}
             onDelete={deleteItem}
+            onReorder={reorderUnsortedItems}
           />
         </Col>
       </Row>
