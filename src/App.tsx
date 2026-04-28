@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Col, Input, Row } from "antd";
+import { Button, Card, Col, Input, Row } from "antd";
 import { create } from "zustand";
 import {
   DndContext,
@@ -8,7 +8,9 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragOverlay,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import DraggableList from "./components/DraggableList";
@@ -158,6 +160,7 @@ const useBearStore = create<ListStuff>((set) => ({
 function App() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [activeId, setActiveId] = useState<number | null>(null);
   const {
     list,
     addList,
@@ -184,10 +187,16 @@ function App() {
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(Number(event.active.id));
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = event;
 
     if (!over) return;
+
 
     const activeId = Number(active.id);
     const overId = over.id;
@@ -228,6 +237,7 @@ function App() {
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <Row>
@@ -252,6 +262,17 @@ function App() {
           />
         </Col>
       </Row>
+
+      <DragOverlay>
+        {activeId ? (
+          <Card
+            size="small"
+            style={{ opacity: 0.9, cursor: "grabbing", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
+          >
+            {list.find((i) => i.id === activeId)?.name ?? ""}
+          </Card>
+        ) : null}
+      </DragOverlay>
 
       <Row gutter={16} style={{ padding: "16px" }}>
         <Col span={8}>
