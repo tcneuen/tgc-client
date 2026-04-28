@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Card, Col, Input, Row } from "antd";
+import { faker } from "@faker-js/faker";
 import { create } from "zustand";
 import {
   DndContext,
@@ -29,6 +30,7 @@ interface ListStuff {
   reorderUnsortedItems: (activeId: number, overId: number) => void;
   moveToSorted: (itemId: number, targetIndex?: number) => void;
   moveToUnsorted: (itemId: number, targetIndex?: number) => void;
+  seedList: () => void;
 }
 
 const useBearStore = create<ListStuff>((set) => ({
@@ -155,6 +157,16 @@ const useBearStore = create<ListStuff>((set) => ({
 
       return { list: updatedList };
     }),
+  seedList: () =>
+    set((state) => {
+      const newItems = Array.from({ length: 10 }, (_, i) => ({
+        id: state.list.length + i + 1,
+        name: faker.commerce.productName(),
+        description: faker.commerce.productDescription(),
+        rank: 0,
+      }));
+      return { list: [...state.list, ...newItems] };
+    }),
 }));
 
 function App() {
@@ -170,6 +182,7 @@ function App() {
     reorderUnsortedItems,
     moveToSorted,
     moveToUnsorted,
+    seedList,
   } = useBearStore();
 
   const sensors = useSensors(
@@ -299,6 +312,9 @@ function App() {
           >
             Add Item
           </Button>
+        </Col>
+        <Col span={24} style={{ marginTop: "8px" }}>
+          <Button onClick={seedList}>Seed 10 Random Items</Button>
         </Col>
       </Row>
     </DndContext>
