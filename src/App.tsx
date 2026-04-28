@@ -23,7 +23,6 @@ function App() {
   const {
     list,
     addList,
-    updateRank,
     deleteItem,
     reorderSortedItems,
     reorderUnsortedItems,
@@ -103,7 +102,6 @@ function App() {
         <Col span={12}>
           <DraggableList
             items={list}
-            onUpdateRank={updateRank}
             onDelete={deleteItem}
             listType="sorted"
             title="Sorted"
@@ -113,7 +111,6 @@ function App() {
         <Col span={12}>
           <DraggableList
             items={list}
-            onUpdateRank={updateRank}
             onDelete={deleteItem}
             listType="unsorted"
             title="Unsorted"

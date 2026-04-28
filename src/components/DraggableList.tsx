@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button, Card, Input, List } from "antd";
+import { Button, Card, List } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -18,9 +18,6 @@ interface ListItem {
 interface SortableItemProps {
   item: ListItem;
   index: number;
-  rankInputs: { [key: number]: string };
-  onInputChange: (itemId: number, value: string) => void;
-  onUpdateRank: (itemId: number) => void;
   onDelete: (id: number) => void;
   titleFormatter: (item: ListItem, index: number) => string;
 }
@@ -28,9 +25,6 @@ interface SortableItemProps {
 function SortableItem({
   item,
   index,
-  rankInputs,
-  onInputChange,
-  onUpdateRank,
   onDelete,
   titleFormatter,
 }: SortableItemProps) {
@@ -52,6 +46,7 @@ function SortableItem({
   return (
     <List.Item ref={setNodeRef} style={style}>
       <Card
+        style={{ width: "100%" }}
         title={
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div
@@ -76,39 +71,17 @@ function SortableItem({
             <span>{titleFormatter(item, index)}</span>
           </div>
         }
-      >
-        <div style={{ marginBottom: "12px" }}>
-          <strong>Description:</strong> {item.description}
-        </div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <Input
-            value={
-              rankInputs[item.id] !== undefined
-                ? rankInputs[item.id]
-                : item.rank === 0
-                  ? ""
-                  : item.rank.toString()
-            }
-            placeholder="Rank"
-            onChange={(e) => onInputChange(item.id, e.target.value)}
-            style={{ flex: 1 }}
-          />
+        extra={
           <Button
-            type="primary"
-            size="small"
-            onClick={() => onUpdateRank(item.id)}
-          >
-            Update
-          </Button>
-          <Button
-            type="primary"
+            type="text"
             danger
+            icon={<DeleteOutlined />}
             size="small"
             onClick={() => onDelete(item.id)}
-          >
-            Delete
-          </Button>
-        </div>
+          />
+        }
+      >
+        <div>{item.description}</div>
       </Card>
     </List.Item>
   );
@@ -116,7 +89,6 @@ function SortableItem({
 
 interface DraggableListProps {
   items: ListItem[];
-  onUpdateRank: (id: number, rank: number) => void;
   onDelete: (id: number) => void;
   listType: "sorted" | "unsorted";
   title: string;
@@ -125,37 +97,14 @@ interface DraggableListProps {
 
 export default function DraggableList({
   items,
-  onUpdateRank,
   onDelete,
   listType,
   title,
   droppableId,
 }: DraggableListProps) {
-  const [rankInputs, setRankInputs] = useState<{ [key: number]: string }>({});
-
   const { setNodeRef: setDroppableRef } = useDroppable({
     id: droppableId,
   });
-
-  const handleInputChange = (itemId: number, value: string) => {
-    setRankInputs((prev) => ({
-      ...prev,
-      [itemId]: value,
-    }));
-  };
-
-  const handleUpdateRank = (itemId: number) => {
-    const newRank = rankInputs[itemId];
-    if (newRank !== undefined) {
-      onUpdateRank(itemId, Number(newRank));
-      // Clear the input state after updating
-      setRankInputs((prev) => {
-        const updated = { ...prev };
-        delete updated[itemId];
-        return updated;
-      });
-    }
-  };
 
   // Filter and sort items based on list type
   const filteredItems =
@@ -190,9 +139,6 @@ export default function DraggableList({
               key={item.id}
               item={item}
               index={index}
-              rankInputs={rankInputs}
-              onInputChange={handleInputChange}
-              onUpdateRank={handleUpdateRank}
               onDelete={onDelete}
               titleFormatter={titleFormatter}
             />
