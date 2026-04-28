@@ -25,6 +25,12 @@ interface ListStuff {
     targetListId: string,
     targetIndex?: number,
   ) => void;
+  moveAllItemsFromList: (
+    collectionId: string,
+    fromListId: string,
+    toListId: string,
+  ) => void;
+  deleteItemsByCollection: (collectionId: string) => void;
 }
 
 const useBearStore = create<ListStuff>((set) => ({
@@ -151,6 +157,26 @@ const useBearStore = create<ListStuff>((set) => ({
 
       return { list: updatedList };
     }),
+  moveAllItemsFromList: (collectionId, fromListId, toListId) =>
+    set((state) => {
+      const toListItems = state.list.filter(
+        (i) => i.collectionId === collectionId && i.listId === toListId,
+      );
+      const toListMaxOrder = toListItems.length;
+      let offset = 0;
+      const updatedList = state.list.map((item) => {
+        if (item.collectionId === collectionId && item.listId === fromListId) {
+          offset++;
+          return { ...item, listId: toListId, order: toListMaxOrder + offset };
+        }
+        return item;
+      });
+      return { list: updatedList };
+    }),
+  deleteItemsByCollection: (collectionId) =>
+    set((state) => ({
+      list: state.list.filter((i) => i.collectionId !== collectionId),
+    })),
 }));
 
 export default useBearStore;

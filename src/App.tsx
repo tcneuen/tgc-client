@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button, Card, Col, Drawer, Empty, Form, Input, Row, Select } from "antd";
+import { Button, Card, Col, Drawer, Empty, Form, Input, Row, Select, Space } from "antd";
+import { SettingOutlined } from "@ant-design/icons";
 import {
   DndContext,
   closestCenter,
@@ -14,6 +15,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import DraggableList from "./components/DraggableList";
 import CollectionDrawer from "./components/CollectionDrawer";
+import ManageCollectionDrawer from "./components/ManageCollectionDrawer";
 import useBearStore from "./store/useBearStore";
 import useCollectionStore from "./store/useCollectionStore";
 import { seedList } from "./utils/seed";
@@ -21,6 +23,7 @@ import { seedList } from "./utils/seed";
 function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collectionDrawerOpen, setCollectionDrawerOpen] = useState(false);
+  const [manageDrawerOpen, setManageDrawerOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [form] = Form.useForm<{ name: string; description: string; listId: string }>();
 
@@ -107,21 +110,50 @@ function App() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      {/* Collection selector */}
-      <Row align="middle" gutter={8} style={{ padding: "16px 16px 8px" }}>
+      {/* Header: action buttons left, collection controls right */}
+      <Row
+        align="middle"
+        justify="space-between"
+        style={{ padding: "16px 16px 8px" }}
+      >
         <Col>
-          <Select
-            placeholder="Select a collection"
-            value={activeCollectionId ?? undefined}
-            onChange={selectCollection}
-            style={{ minWidth: 220 }}
-            options={collections.map((c) => ({ value: c.id, label: c.name }))}
-          />
+          {activeCollectionId && (
+            <Space>
+              <Button type="primary" onClick={openAddDrawer}>
+                Add Item
+              </Button>
+              <Button
+                onClick={() =>
+                  seedList(
+                    activeCollectionId,
+                    activeCollection?.defaultListId ?? "",
+                  )
+                }
+              >
+                Seed 10 Random Items
+              </Button>
+            </Space>
+          )}
         </Col>
         <Col>
-          <Button onClick={() => setCollectionDrawerOpen(true)}>
-            New Collection
-          </Button>
+          <Space>
+            <Select
+              placeholder="Select a collection"
+              value={activeCollectionId ?? undefined}
+              onChange={selectCollection}
+              style={{ minWidth: 220 }}
+              options={collections.map((c) => ({ value: c.id, label: c.name }))}
+            />
+            {activeCollectionId && (
+              <Button
+                icon={<SettingOutlined />}
+                onClick={() => setManageDrawerOpen(true)}
+              />
+            )}
+            <Button onClick={() => setCollectionDrawerOpen(true)}>
+              New Collection
+            </Button>
+          </Space>
         </Col>
       </Row>
 
@@ -132,25 +164,6 @@ function App() {
         />
       ) : (
         <>
-          {/* Action buttons */}
-          <Row gutter={8} style={{ padding: "0 16px 16px" }}>
-            <Col>
-              <Button type="primary" onClick={openAddDrawer}>
-                Add Item
-              </Button>
-            </Col>
-            <Col>
-              <Button
-                onClick={() =>
-                  seedList(activeCollectionId, activeCollection?.defaultListId ?? "")
-                }
-              >
-                Seed 10 Random Items
-              </Button>
-            </Col>
-          </Row>
-
-          {/* Lists */}
           <Row>
             {activeCollection?.lists.map((listConfig) => (
               <Col span={colSpan} key={listConfig.id}>
@@ -255,6 +268,15 @@ function App() {
         open={collectionDrawerOpen}
         onClose={() => setCollectionDrawerOpen(false)}
       />
+
+      {/* Manage Collection Drawer */}
+      {activeCollection && (
+        <ManageCollectionDrawer
+          open={manageDrawerOpen}
+          collection={activeCollection}
+          onClose={() => setManageDrawerOpen(false)}
+        />
+      )}
     </DndContext>
   );
 }
