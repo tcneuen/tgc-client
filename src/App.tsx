@@ -16,7 +16,6 @@ import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import AddItemDrawer from "./components/AddItemDrawer";
 import DraggableList from "./components/DraggableList";
 import CollectionDrawer from "./components/CollectionDrawer";
-import ManageCollectionDrawer from "./components/ManageCollectionDrawer";
 import useBearStore from "./store/useBearStore";
 import useCollectionStore from "./store/useCollectionStore";
 import { seedList } from "./utils/seed";
@@ -199,7 +198,7 @@ function App() {
 
       {/* Manage Collection Drawer */}
       {activeCollection && (
-        <ManageCollectionDrawer
+        <CollectionDrawer
           open={manageDrawerOpen}
           collection={activeCollection}
           onClose={() => setManageDrawerOpen(false)}
