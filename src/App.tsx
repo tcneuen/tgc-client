@@ -98,6 +98,17 @@ function App() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      <Row gutter={8} style={{ padding: "16px" }}>
+        <Col>
+          <Button type="primary" onClick={() => setDrawerOpen(true)}>
+            Add Item
+          </Button>
+        </Col>
+        <Col>
+          <Button onClick={seedList}>Seed 10 Random Items</Button>
+        </Col>
+      </Row>
+
       <Row>
         <Col span={12}>
           <DraggableList
@@ -129,17 +140,6 @@ function App() {
           </Card>
         ) : null}
       </DragOverlay>
-
-      <Row gutter={8} style={{ padding: "16px" }}>
-        <Col>
-          <Button type="primary" onClick={() => setDrawerOpen(true)}>
-            Add Item
-          </Button>
-        </Col>
-        <Col>
-          <Button onClick={seedList}>Seed 10 Random Items</Button>
-        </Col>
-      </Row>
 
       <Drawer
         title="Add New Item"
