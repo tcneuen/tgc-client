@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, Col, Input, Row } from "antd";
+import { Button, Card, Col, Drawer, Form, Input, Row } from "antd";
 import {
   DndContext,
   closestCenter,
@@ -17,9 +17,9 @@ import useBearStore from "./store/useBearStore";
 import { seedList } from "./utils/seed";
 
 function App() {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [form] = Form.useForm<{ name: string; description: string }>();
   const {
     list,
     addList,
@@ -39,11 +39,11 @@ function App() {
   );
 
   const handleAddItem = () => {
-    if (name.trim() && description.trim()) {
+    form.validateFields().then(({ name, description }) => {
       addList(name.trim(), description.trim());
-      setName("");
-      setDescription("");
-    }
+      form.resetFields();
+      setDrawerOpen(false);
+    });
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -133,36 +133,46 @@ function App() {
         ) : null}
       </DragOverlay>
 
-      <Row gutter={16} style={{ padding: "16px" }}>
-        <Col span={8}>
-          <Input
-            placeholder="Item name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onPressEnter={handleAddItem}
-          />
-        </Col>
-        <Col span={8}>
-          <Input
-            placeholder="Item description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onPressEnter={handleAddItem}
-          />
-        </Col>
-        <Col span={8}>
-          <Button
-            type="primary"
-            onClick={handleAddItem}
-            disabled={!name.trim() || !description.trim()}
-          >
+      <Row gutter={8} style={{ padding: "16px" }}>
+        <Col>
+          <Button type="primary" onClick={() => setDrawerOpen(true)}>
             Add Item
           </Button>
         </Col>
-        <Col span={24} style={{ marginTop: "8px" }}>
+        <Col>
           <Button onClick={seedList}>Seed 10 Random Items</Button>
         </Col>
       </Row>
+
+      <Drawer
+        title="Add New Item"
+        placement="right"
+        open={drawerOpen}
+        onClose={() => { form.resetFields(); setDrawerOpen(false); }}
+        footer={
+          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+            <Button onClick={() => { form.resetFields(); setDrawerOpen(false); }}>Cancel</Button>
+            <Button type="primary" onClick={handleAddItem}>Add Item</Button>
+          </div>
+        }
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="name"
+            label="Name"
+            rules={[{ required: true, whitespace: true, message: "Please enter a name" }]}
+          >
+            <Input placeholder="Item name" />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="Description"
+            rules={[{ required: true, whitespace: true, message: "Please enter a description" }]}
+          >
+            <Input.TextArea placeholder="Item description" rows={4} />
+          </Form.Item>
+        </Form>
+      </Drawer>
     </DndContext>
   );
 }
