@@ -7,27 +7,15 @@ import {
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-interface ListItem {
-  id: number;
-  name: string;
-  description: string;
-  rank: number;
-}
+import type { ListItem } from "../store/useBearStore";
 
 interface SortableItemProps {
   item: ListItem;
   index: number;
   onDelete: (id: number) => void;
-  titleFormatter: (item: ListItem, index: number) => string;
 }
 
-function SortableItem({
-  item,
-  index,
-  onDelete,
-  titleFormatter,
-}: SortableItemProps) {
+function SortableItem({ item, index, onDelete }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -68,7 +56,7 @@ function SortableItem({
             >
               ⋮⋮
             </div>
-            <span>{titleFormatter(item, index)}</span>
+            <span>{`#${index + 1}: ${item.name}`}</span>
           </div>
         }
         extra={
@@ -89,39 +77,28 @@ function SortableItem({
 
 interface DraggableListProps {
   items: ListItem[];
-  onDelete: (id: number) => void;
-  listType: "sorted" | "unsorted";
+  collectionId: string;
+  listId: string;
   title: string;
   droppableId: string;
+  onDelete: (id: number) => void;
 }
 
 export default function DraggableList({
   items,
-  onDelete,
-  listType,
+  collectionId,
+  listId,
   title,
   droppableId,
+  onDelete,
 }: DraggableListProps) {
   const { setNodeRef: setDroppableRef } = useDroppable({
     id: droppableId,
   });
 
-  // Filter and sort items based on list type
-  const filteredItems =
-    listType === "sorted"
-      ? [...items]
-          .filter((item) => item.rank !== 0)
-          .sort((a, b) => a.rank - b.rank)
-      : [...items].filter((item) => item.rank === 0);
-
-  // Title formatter based on list type
-  const titleFormatter = (item: ListItem, index: number): string => {
-    if (listType === "sorted") {
-      return `#${index + 1} - Rank ${item.rank}: ${item.name}`;
-    } else {
-      return `#${index + 1}: ${item.name}`;
-    }
-  };
+  const filteredItems = items
+    .filter((i) => i.collectionId === collectionId && i.listId === listId)
+    .sort((a, b) => a.order - b.order);
 
   return (
     <div ref={setDroppableRef}>
@@ -130,8 +107,13 @@ export default function DraggableList({
         strategy={verticalListSortingStrategy}
       >
         <List
-          header={<div>{title} (Drag between lists)</div>}
-          footer={<div>{filteredItems.length}</div>}
+          header={<div>{title}</div>}
+          footer={
+            <div>
+              {filteredItems.length} item
+              {filteredItems.length !== 1 ? "s" : ""}
+            </div>
+          }
           bordered
           dataSource={filteredItems}
           renderItem={(item, index) => (
@@ -140,7 +122,6 @@ export default function DraggableList({
               item={item}
               index={index}
               onDelete={onDelete}
-              titleFormatter={titleFormatter}
             />
           )}
         />
