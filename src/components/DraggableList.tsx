@@ -37,6 +37,7 @@ function SortableItem({ item, index, onDelete, onEdit }: SortableItemProps) {
   return (
     <List.Item ref={setNodeRef} style={style}>
       <Card
+        size="small"
         style={{ width: "100%" }}
         styles={{
           header: {
