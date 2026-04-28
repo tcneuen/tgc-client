@@ -233,6 +233,7 @@ export default function ManageCollectionDrawer({
                       size="small"
                       icon={<EditOutlined />}
                       onClick={() => handleStartRename(l)}
+                      disabled={!!l.protected}
                     />
                     <Popconfirm
                       title={`Delete "${l.name}"?`}
@@ -243,18 +244,20 @@ export default function ManageCollectionDrawer({
                       }
                       okText="Delete"
                       okButtonProps={{ danger: true }}
-                      disabled={collection.lists.length <= 1}
+                      disabled={!!l.protected || collection.lists.length <= 1}
                       onConfirm={() => handleRequestDeleteList(l)}
                     >
                       <Button
                         size="small"
                         danger
                         icon={<DeleteOutlined />}
-                        disabled={collection.lists.length <= 1}
+                        disabled={!!l.protected || collection.lists.length <= 1}
                         title={
-                          collection.lists.length <= 1
-                            ? "Cannot delete the only list"
-                            : undefined
+                          l.protected
+                            ? "Cannot delete the Ungraded list"
+                            : collection.lists.length <= 1
+                              ? "Cannot delete the only list"
+                              : undefined
                         }
                       />
                     </Popconfirm>

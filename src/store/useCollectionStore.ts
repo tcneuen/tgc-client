@@ -3,6 +3,7 @@ import { create } from "zustand";
 export interface ListConfig {
   id: string;
   name: string;
+  protected?: boolean;
 }
 
 export interface Collection {
@@ -18,7 +19,6 @@ interface CollectionState {
   createCollection: (
     name: string,
     lists: ListConfig[],
-    defaultListId: string,
   ) => void;
   selectCollection: (id: string) => void;
   updateCollection: (
@@ -35,10 +35,17 @@ interface CollectionState {
 const useCollectionStore = create<CollectionState>((set) => ({
   collections: [],
   activeCollectionId: null,
-  createCollection: (name, lists, defaultListId) =>
+  createCollection: (name, lists) =>
     set((state) => {
       const id = crypto.randomUUID();
-      const newCollection: Collection = { id, name, lists, defaultListId };
+      const ungradedId = crypto.randomUUID();
+      const ungraded: ListConfig = { id: ungradedId, name: "Ungraded", protected: true };
+      const newCollection: Collection = {
+        id,
+        name,
+        lists: [ungraded, ...lists],
+        defaultListId: ungradedId,
+      };
       return {
         collections: [...state.collections, newCollection],
         activeCollectionId: id,
@@ -80,6 +87,8 @@ const useCollectionStore = create<CollectionState>((set) => ({
     set((state) => ({
       collections: state.collections.map((c) => {
         if (c.id !== collectionId) return c;
+        const listToRemove = c.lists.find((l) => l.id === listId);
+        if (listToRemove?.protected) return c;
         const remaining = c.lists.filter((l) => l.id !== listId);
         return {
           ...c,
