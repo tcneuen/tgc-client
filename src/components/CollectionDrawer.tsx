@@ -40,8 +40,10 @@ interface ListRowProps {
   list: ListConfig;
   totalUserLists: number;
   itemCount?: number;
+  usedRatings: Set<number>;
   onColorChange: (id: string, color: string) => void;
   onRename: (id: string, name: string) => void;
+  onRatingChange: (id: string, rating: number | undefined) => void;
   onDelete: (list: ListConfig) => void;
 }
 
@@ -49,16 +51,49 @@ function ListRow({
   list,
   totalUserLists,
   itemCount,
+  usedRatings,
   onColorChange,
   onRename,
+  onRatingChange,
   onDelete,
 }: ListRowProps) {
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(list.name);
+  const [ratingInput, setRatingInput] = useState(
+    list.startingRating !== undefined ? String(list.startingRating) : "",
+  );
+  const [ratingError, setRatingError] = useState("");
 
   const saveRename = () => {
     if (draft.trim()) onRename(list.id, draft.trim());
     setRenaming(false);
+  };
+
+  const handleRatingBlur = () => {
+    if (ratingInput === "") {
+      onRatingChange(list.id, undefined);
+      setRatingError("");
+      return;
+    }
+    const parsed = parseFloat(ratingInput);
+    if (Number.isNaN(parsed)) {
+      setRatingError("Must be a number");
+      return;
+    }
+    if (parsed < 0 || parsed > 10) {
+      setRatingError("Must be 0–10");
+      return;
+    }
+    if (!/^\d+(\.\d{1,2})?$/.test(ratingInput.trim())) {
+      setRatingError("Max 2 decimals");
+      return;
+    }
+    if (usedRatings.has(parsed) && parsed !== list.startingRating) {
+      setRatingError("Already used");
+      return;
+    }
+    setRatingError("");
+    onRatingChange(list.id, parsed);
   };
 
   return (
@@ -101,6 +136,21 @@ function ListRow({
 
       {!renaming && (
         <>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <Input
+              size="small"
+              placeholder="Rating"
+              value={ratingInput}
+              onChange={(e) => { setRatingInput(e.target.value); setRatingError(""); }}
+              onBlur={handleRatingBlur}
+              onPressEnter={handleRatingBlur}
+              style={{ width: 70, textAlign: "right" }}
+              status={ratingError ? "error" : ""}
+            />
+            {ratingError && (
+              <Typography.Text type="danger" style={{ fontSize: 10 }}>{ratingError}</Typography.Text>
+            )}
+          </div>
           <ColorPicker
             size="small"
             value={list.backgroundColor ?? "#ffffff"}
@@ -165,6 +215,7 @@ export default function CollectionDrawer({
     deleteCollection,
     addListToCollection,
     updateListColor,
+    updateListRating,
     renameList,
     removeList,
   } = useCollectionStore();
@@ -215,6 +266,11 @@ export default function CollectionDrawer({
   const handleDraftColorChange = (id: string, color: string) =>
     setDraftLists((prev) =>
       prev.map((l) => (l.id === id ? { ...l, backgroundColor: color } : l)),
+    );
+
+  const handleDraftRatingChange = (id: string, rating: number | undefined) =>
+    setDraftLists((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, startingRating: rating } : l)),
     );
 
   const handleDraftRename = (id: string, name: string) =>
@@ -279,6 +335,11 @@ export default function CollectionDrawer({
 
   const displayLists = isManage ? (collection?.lists ?? []) : draftLists;
   const userListCount = displayLists.filter((l) => !l.protected).length;
+  const usedRatings = new Set(
+    displayLists
+      .map((l) => l.startingRating)
+      .filter((r): r is number => r !== undefined),
+  );
   const moveTargetOptions = (collection?.lists ?? [])
     .filter((l) => l.id !== deleteListModal?.listId)
     .map((l) => ({ value: l.id, label: l.name }));
@@ -425,6 +486,7 @@ export default function CollectionDrawer({
                 list={l}
                 totalUserLists={userListCount}
                 itemCount={itemCount}
+                usedRatings={usedRatings}
                 onColorChange={
                   isManage && collection
                     ? (id, color) => updateListColor(collection.id, id, color)
@@ -434,6 +496,11 @@ export default function CollectionDrawer({
                   isManage && collection
                     ? (id, name) => renameList(collection.id, id, name)
                     : handleDraftRename
+                }
+                onRatingChange={
+                  isManage && collection
+                    ? (id, rating) => updateListRating(collection.id, id, rating)
+                    : handleDraftRatingChange
                 }
                 onDelete={isManage ? handleManageDeleteList : handleDraftDelete}
               />

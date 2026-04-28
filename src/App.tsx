@@ -87,6 +87,12 @@ function App() {
     ? Math.floor(24 / activeCollection.lists.length)
     : 12;
 
+  const sortedLists = activeCollection
+    ? [...activeCollection.lists].sort(
+        (a, b) => (b.startingRating ?? -Infinity) - (a.startingRating ?? -Infinity),
+      )
+    : [];
+
   return (
     <DndContext
       sensors={sensors}
@@ -149,7 +155,7 @@ function App() {
       ) : (
         <>
           <Row>
-            {activeCollection?.lists.map((listConfig) => (
+            {sortedLists.map((listConfig) => (
               <Col span={colSpan} key={listConfig.id}>
                 <DraggableList
                   items={collectionItems}
@@ -159,6 +165,7 @@ function App() {
                   droppableId={listConfig.id}
                   onDelete={deleteItem}
                   backgroundColor={listConfig.backgroundColor}
+                  startingRating={listConfig.startingRating}
                 />
               </Col>
             ))}

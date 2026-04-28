@@ -5,6 +5,7 @@ export interface ListConfig {
   name: string;
   protected?: boolean;
   backgroundColor?: string;
+  startingRating?: number;
 }
 
 export interface Collection {
@@ -31,6 +32,7 @@ interface CollectionState {
   addListToCollection: (collectionId: string, list: ListConfig) => void;
   renameList: (collectionId: string, listId: string, name: string) => void;
   updateListColor: (collectionId: string, listId: string, color: string) => void;
+  updateListRating: (collectionId: string, listId: string, rating: number | undefined) => void;
   removeList: (collectionId: string, listId: string) => void;
 }
 
@@ -93,6 +95,19 @@ const useCollectionStore = create<CollectionState>((set) => ({
               ...c,
               lists: c.lists.map((l) =>
                 l.id === listId ? { ...l, backgroundColor: color } : l,
+              ),
+            }
+          : c,
+      ),
+    })),
+  updateListRating: (collectionId, listId, rating) =>
+    set((state) => ({
+      collections: state.collections.map((c) =>
+        c.id === collectionId
+          ? {
+              ...c,
+              lists: c.lists.map((l) =>
+                l.id === listId ? { ...l, startingRating: rating } : l,
               ),
             }
           : c,

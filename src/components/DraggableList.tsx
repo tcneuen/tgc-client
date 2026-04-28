@@ -17,9 +17,10 @@ interface SortableItemProps {
   index: number;
   onDelete: (id: number) => void;
   onEdit: (item: ListItem) => void;
+  rating?: number;
 }
 
-function SortableItem({ item, index, onDelete, onEdit }: SortableItemProps) {
+function SortableItem({ item, index, onDelete, onEdit, rating }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -50,9 +51,14 @@ function SortableItem({ item, index, onDelete, onEdit }: SortableItemProps) {
           <div
             {...attributes}
             {...listeners}
-            style={{ display: "flex", alignItems: "center" }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}
           >
             <span>{`#${index + 1}: ${item.name}`}</span>
+            {rating !== undefined && (
+              <span style={{ fontSize: 11, fontWeight: "normal", color: "#8c8c8c", marginLeft: 8 }}>
+                {rating}
+              </span>
+            )}
           </div>
         }
         extra={
@@ -95,6 +101,7 @@ interface DraggableListProps {
   droppableId: string;
   onDelete: (id: number) => void;
   backgroundColor?: string;
+  startingRating?: number;
 }
 
 export default function DraggableList({
@@ -105,6 +112,7 @@ export default function DraggableList({
   droppableId,
   onDelete,
   backgroundColor = "#ffffff",
+  startingRating,
 }: DraggableListProps) {
   const [editingItem, setEditingItem] = useState<ListItem | null>(null);
   const { token } = theme.useToken();
@@ -148,9 +156,17 @@ export default function DraggableList({
           backgroundColor: token.colorFillAlter,
           borderRadius: `${token.borderRadius}px ${token.borderRadius}px 0 0`,
           flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
-        {title}
+        <span>{title}</span>
+        {startingRating !== undefined && (
+          <span style={{ fontSize: 11, fontWeight: "normal", color: token.colorTextSecondary }}>
+            starts at {startingRating}
+          </span>
+        )}
       </div>
 
       {/* Virtualized scroll area */}
@@ -189,6 +205,11 @@ export default function DraggableList({
                     index={virtualRow.index}
                     onDelete={onDelete}
                     onEdit={setEditingItem}
+                    rating={
+                      startingRating !== undefined
+                        ? startingRating - virtualRow.index
+                        : undefined
+                    }
                   />
                 </div>
               );
