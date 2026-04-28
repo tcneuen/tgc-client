@@ -35,27 +35,18 @@ function SortableItem({ item, index, onDelete }: SortableItemProps) {
     <List.Item ref={setNodeRef} style={style}>
       <Card
         style={{ width: "100%" }}
+        styles={{
+          header: {
+            cursor: isDragging ? "grabbing" : "grab",
+            userSelect: "none",
+          },
+        }}
         title={
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <div
-              {...attributes}
-              {...listeners}
-              style={{
-                cursor: isDragging ? "grabbing" : "grab",
-                padding: "4px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "12px",
-                backgroundColor: "#f0f0f0",
-                borderRadius: "4px",
-                minWidth: "20px",
-                height: "20px",
-              }}
-              title="Drag to reorder"
-            >
-              ⋮⋮
-            </div>
+          <div
+            {...attributes}
+            {...listeners}
+            style={{ display: "flex", alignItems: "center" }}
+          >
             <span>{`#${index + 1}: ${item.name}`}</span>
           </div>
         }

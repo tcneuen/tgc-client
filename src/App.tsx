@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, Col, Drawer, Empty, Form, Input, Row, Select, Space } from "antd";
+import { Button, Card, Col, Empty, Row, Select, Space } from "antd";
 import { SettingOutlined } from "@ant-design/icons";
 import {
   DndContext,
@@ -13,6 +13,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import AddItemDrawer from "./components/AddItemDrawer";
 import DraggableList from "./components/DraggableList";
 import CollectionDrawer from "./components/CollectionDrawer";
 import ManageCollectionDrawer from "./components/ManageCollectionDrawer";
@@ -21,13 +22,12 @@ import useCollectionStore from "./store/useCollectionStore";
 import { seedList } from "./utils/seed";
 
 function App() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [addItemOpen, setAddItemOpen] = useState(false);
   const [collectionDrawerOpen, setCollectionDrawerOpen] = useState(false);
   const [manageDrawerOpen, setManageDrawerOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
-  const [form] = Form.useForm<{ name: string; description: string; listId: string }>();
 
-  const { list, addItem, deleteItem, reorderItemsInList, moveItemToList } =
+  const { list, deleteItem, reorderItemsInList, moveItemToList } =
     useBearStore();
   const { collections, activeCollectionId, selectCollection } =
     useCollectionStore();
@@ -41,21 +41,6 @@ function App() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
-  const openAddDrawer = () => {
-    if (activeCollection) {
-      form.setFieldValue("listId", activeCollection.defaultListId);
-    }
-    setDrawerOpen(true);
-  };
-
-  const handleAddItem = () => {
-    form.validateFields().then(({ name, description, listId }) => {
-      addItem(name.trim(), description.trim(), activeCollectionId ?? "", listId);
-      form.resetFields();
-      setDrawerOpen(false);
-    });
-  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(Number(event.active.id));
@@ -119,7 +104,7 @@ function App() {
         <Col>
           {activeCollectionId && (
             <Space>
-              <Button type="primary" onClick={openAddDrawer}>
+              <Button type="primary" onClick={() => setAddItemOpen(true)}>
                 Add Item
               </Button>
               <Button
@@ -197,71 +182,13 @@ function App() {
       </DragOverlay>
 
       {/* Add Item Drawer */}
-      <Drawer
-        title="Add New Item"
-        placement="right"
-        open={drawerOpen}
-        onClose={() => {
-          form.resetFields();
-          setDrawerOpen(false);
-        }}
-        footer={
-          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-            <Button
-              onClick={() => {
-                form.resetFields();
-                setDrawerOpen(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button type="primary" onClick={handleAddItem}>
-              Add Item
-            </Button>
-          </div>
-        }
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[
-              {
-                required: true,
-                whitespace: true,
-                message: "Please enter a name",
-              },
-            ]}
-          >
-            <Input placeholder="Item name" />
-          </Form.Item>
-          <Form.Item
-            name="description"
-            label="Description"
-            rules={[
-              {
-                required: true,
-                whitespace: true,
-                message: "Please enter a description",
-              },
-            ]}
-          >
-            <Input.TextArea placeholder="Item description" rows={4} />
-          </Form.Item>
-          <Form.Item
-            name="listId"
-            label="List"
-            rules={[{ required: true, message: "Please select a list" }]}
-          >
-            <Select
-              options={activeCollection?.lists.map((l) => ({
-                value: l.id,
-                label: l.name,
-              }))}
-            />
-          </Form.Item>
-        </Form>
-      </Drawer>
+      {activeCollection && (
+        <AddItemDrawer
+          open={addItemOpen}
+          collection={activeCollection}
+          onClose={() => setAddItemOpen(false)}
+        />
+      )}
 
       {/* New Collection Drawer */}
       <CollectionDrawer
