@@ -1,5 +1,6 @@
-import { Button, Card, List } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import { useState } from "react";
+import { Button, Card, List, Popconfirm } from "antd";
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -8,14 +9,16 @@ import {
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { ListItem } from "../store/useBearStore";
+import EditItemDrawer from "./EditItemDrawer";
 
 interface SortableItemProps {
   item: ListItem;
   index: number;
   onDelete: (id: number) => void;
+  onEdit: (item: ListItem) => void;
 }
 
-function SortableItem({ item, index, onDelete }: SortableItemProps) {
+function SortableItem({ item, index, onDelete, onEdit }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -51,13 +54,29 @@ function SortableItem({ item, index, onDelete }: SortableItemProps) {
           </div>
         }
         extra={
-          <Button
-            type="text"
-            danger
-            icon={<DeleteOutlined />}
-            size="small"
-            onClick={() => onDelete(item.id)}
-          />
+          <div style={{ display: "flex", gap: "4px" }}>
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              size="small"
+              onClick={(e) => { e.stopPropagation(); onEdit(item); }}
+            />
+            <Popconfirm
+              title="Delete this item?"
+              onConfirm={() => onDelete(item.id)}
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+              cancelText="Cancel"
+            >
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </Popconfirm>
+          </div>
         }
       >
         <div>{item.description}</div>
@@ -83,6 +102,8 @@ export default function DraggableList({
   droppableId,
   onDelete,
 }: DraggableListProps) {
+  const [editingItem, setEditingItem] = useState<ListItem | null>(null);
+
   const { setNodeRef: setDroppableRef } = useDroppable({
     id: droppableId,
   });
@@ -113,10 +134,16 @@ export default function DraggableList({
               item={item}
               index={index}
               onDelete={onDelete}
+              onEdit={setEditingItem}
             />
           )}
         />
       </SortableContext>
+      <EditItemDrawer
+        item={editingItem}
+        open={editingItem !== null}
+        onClose={() => setEditingItem(null)}
+      />
     </div>
   );
 }

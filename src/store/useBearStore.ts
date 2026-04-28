@@ -19,6 +19,7 @@ interface ListStuff {
   ) => void;
   addBulk: (items: Omit<ListItem, "id">[]) => void;
   deleteItem: (id: number) => void;
+  updateItem: (id: number, name: string, description: string) => void;
   reorderItemsInList: (activeId: number, overId: number) => void;
   moveItemToList: (
     itemId: number,
@@ -82,6 +83,12 @@ const useBearStore = create<ListStuff>((set) => ({
         });
       return { list: updatedList };
     }),
+  updateItem: (id, name, description) =>
+    set((state) => ({
+      list: state.list.map((i) =>
+        i.id === id ? { ...i, name, description } : i,
+      ),
+    })),
   reorderItemsInList: (activeId, overId) =>
     set((state) => {
       const activeItem = state.list.find((i) => i.id === activeId);
