@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button, Card, List, Popconfirm } from "antd";
+import { useRef, useState } from "react";
+import { Button, Card, Popconfirm, theme } from "antd";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useDroppable } from "@dnd-kit/core";
 import {
@@ -8,6 +8,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ListItem } from "../store/useBearStore";
 import EditItemDrawer from "./EditItemDrawer";
 
@@ -35,7 +36,7 @@ function SortableItem({ item, index, onDelete, onEdit }: SortableItemProps) {
   };
 
   return (
-    <List.Item ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={{ ...style, padding: "4px 8px" }}>
       <Card
         size="small"
         style={{ width: "100%" }}
@@ -82,7 +83,7 @@ function SortableItem({ item, index, onDelete, onEdit }: SortableItemProps) {
       >
         <div>{item.description}</div>
       </Card>
-    </List.Item>
+    </div>
   );
 }
 
@@ -106,42 +107,109 @@ export default function DraggableList({
   backgroundColor = "#ffffff",
 }: DraggableListProps) {
   const [editingItem, setEditingItem] = useState<ListItem | null>(null);
+  const { token } = theme.useToken();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { setNodeRef: setDroppableRef } = useDroppable({
-    id: droppableId,
-  });
+  const { setNodeRef: setDroppableRef } = useDroppable({ id: droppableId });
 
   const filteredItems = items
     .filter((i) => i.collectionId === collectionId && i.listId === listId)
     .sort((a, b) => a.order - b.order);
 
+  const virtualizer = useVirtualizer({
+    count: filteredItems.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 110,
+    overscan: 5,
+  });
+
+  const setRefs = (el: HTMLDivElement | null) => {
+    setDroppableRef(el);
+    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
+
   return (
-    <div ref={setDroppableRef} style={{ backgroundColor, borderRadius: 6 }}>
-      <SortableContext
-        items={filteredItems.map((item) => item.id)}
-        strategy={verticalListSortingStrategy}
+    <div
+      style={{
+        backgroundColor,
+        borderRadius: token.borderRadius,
+        border: `1px solid ${token.colorBorderSecondary}`,
+        display: "flex",
+        flexDirection: "column",
+        height: "calc(100vh - 130px)",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: "8px 12px",
+          fontWeight: token.fontWeightStrong,
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+          backgroundColor: token.colorFillAlter,
+          borderRadius: `${token.borderRadius}px ${token.borderRadius}px 0 0`,
+          flexShrink: 0,
+        }}
       >
-        <List
-          header={<div>{title}</div>}
-          footer={
-            <div>
-              {filteredItems.length} item
-              {filteredItems.length !== 1 ? "s" : ""}
-            </div>
-          }
-          bordered
-          dataSource={filteredItems}
-          renderItem={(item, index) => (
-            <SortableItem
-              key={item.id}
-              item={item}
-              index={index}
-              onDelete={onDelete}
-              onEdit={setEditingItem}
-            />
-          )}
-        />
-      </SortableContext>
+        {title}
+      </div>
+
+      {/* Virtualized scroll area */}
+      <div
+        ref={setRefs}
+        style={{ flex: 1, overflowY: "auto" }}
+      >
+        <SortableContext
+          items={filteredItems.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div
+            style={{
+              height: virtualizer.getTotalSize(),
+              width: "100%",
+              position: "relative",
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const item = filteredItems[virtualRow.index];
+              return (
+                <div
+                  key={item.id}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <SortableItem
+                    item={item}
+                    index={virtualRow.index}
+                    onDelete={onDelete}
+                    onEdit={setEditingItem}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </SortableContext>
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          padding: "6px 12px",
+          borderTop: `1px solid ${token.colorBorderSecondary}`,
+          color: token.colorTextSecondary,
+          fontSize: token.fontSizeSM,
+          flexShrink: 0,
+        }}
+      >
+        {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}
+      </div>
+
       <EditItemDrawer
         item={editingItem}
         open={editingItem !== null}
