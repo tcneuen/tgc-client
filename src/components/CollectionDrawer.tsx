@@ -80,8 +80,8 @@ function ListRow({
       setRatingError("Must be a number");
       return;
     }
-    if (parsed < 0 || parsed > 10) {
-      setRatingError("Must be 0–10");
+    if (parsed < 0 || parsed > 9.5) {
+      setRatingError("Must be 0–9.50");
       return;
     }
     if (!/^\d+(\.\d{1,2})?$/.test(ratingInput.trim())) {
