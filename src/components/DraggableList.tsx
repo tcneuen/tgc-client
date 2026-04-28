@@ -56,7 +56,7 @@ function SortableItem({ item, index, onDelete, onEdit, rating }: SortableItemPro
             <span>{`#${index + 1}: ${item.name}`}</span>
             {rating !== undefined && (
               <span style={{ fontSize: 11, fontWeight: "normal", color: "#8c8c8c", marginLeft: 8 }}>
-                {rating}
+                {rating.toFixed(2)}
               </span>
             )}
           </div>
@@ -102,6 +102,7 @@ interface DraggableListProps {
   onDelete: (id: number) => void;
   backgroundColor?: string;
   startingRating?: number;
+  ratingCeiling?: number;
 }
 
 export default function DraggableList({
@@ -113,6 +114,7 @@ export default function DraggableList({
   onDelete,
   backgroundColor = "#ffffff",
   startingRating,
+  ratingCeiling,
 }: DraggableListProps) {
   const [editingItem, setEditingItem] = useState<ListItem | null>(null);
   const { token } = theme.useToken();
@@ -164,7 +166,7 @@ export default function DraggableList({
         <span>{title}</span>
         {startingRating !== undefined && (
           <span style={{ fontSize: 11, fontWeight: "normal", color: token.colorTextSecondary }}>
-            starts at {startingRating}
+            starts at {startingRating.toFixed(2)}
           </span>
         )}
       </div>
@@ -206,8 +208,10 @@ export default function DraggableList({
                     onDelete={onDelete}
                     onEdit={setEditingItem}
                     rating={
-                      startingRating !== undefined
-                        ? startingRating - virtualRow.index
+                      startingRating !== undefined && ratingCeiling !== undefined
+                        ? ratingCeiling -
+                          ((ratingCeiling - startingRating) / filteredItems.length) *
+                            (virtualRow.index + 1)
                         : undefined
                     }
                   />

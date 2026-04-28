@@ -60,7 +60,7 @@ function ListRow({
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(list.name);
   const [ratingInput, setRatingInput] = useState(
-    list.startingRating !== undefined ? String(list.startingRating) : "",
+    list.startingRating !== undefined ? list.startingRating.toFixed(2) : "",
   );
   const [ratingError, setRatingError] = useState("");
 

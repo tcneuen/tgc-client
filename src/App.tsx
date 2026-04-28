@@ -155,20 +155,29 @@ function App() {
       ) : (
         <>
           <Row>
-            {sortedLists.map((listConfig) => (
-              <Col span={colSpan} key={listConfig.id}>
-                <DraggableList
-                  items={collectionItems}
-                  collectionId={activeCollectionId}
-                  listId={listConfig.id}
-                  title={listConfig.name}
-                  droppableId={listConfig.id}
-                  onDelete={deleteItem}
-                  backgroundColor={listConfig.backgroundColor}
-                  startingRating={listConfig.startingRating}
-                />
-              </Col>
-            ))}
+            {sortedLists.map((listConfig, idx) => {
+              const ceiling =
+                listConfig.startingRating !== undefined
+                  ? idx === 0
+                    ? 10
+                    : (sortedLists[idx - 1].startingRating ?? 10)
+                  : undefined;
+              return (
+                <Col span={colSpan} key={listConfig.id}>
+                  <DraggableList
+                    items={collectionItems}
+                    collectionId={activeCollectionId}
+                    listId={listConfig.id}
+                    title={listConfig.name}
+                    droppableId={listConfig.id}
+                    onDelete={deleteItem}
+                    backgroundColor={listConfig.backgroundColor}
+                    startingRating={listConfig.startingRating}
+                    ratingCeiling={ceiling}
+                  />
+                </Col>
+              );
+            })}
           </Row>
         </>
       )}
