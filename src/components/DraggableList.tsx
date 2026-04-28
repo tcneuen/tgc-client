@@ -93,6 +93,7 @@ interface DraggableListProps {
   title: string;
   droppableId: string;
   onDelete: (id: number) => void;
+  backgroundColor?: string;
 }
 
 export default function DraggableList({
@@ -102,6 +103,7 @@ export default function DraggableList({
   title,
   droppableId,
   onDelete,
+  backgroundColor = "#ffffff",
 }: DraggableListProps) {
   const [editingItem, setEditingItem] = useState<ListItem | null>(null);
 
@@ -114,7 +116,7 @@ export default function DraggableList({
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div ref={setDroppableRef}>
+    <div ref={setDroppableRef} style={{ backgroundColor, borderRadius: 6 }}>
       <SortableContext
         items={filteredItems.map((item) => item.id)}
         strategy={verticalListSortingStrategy}

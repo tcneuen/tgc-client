@@ -4,6 +4,7 @@ export interface ListConfig {
   id: string;
   name: string;
   protected?: boolean;
+  backgroundColor?: string;
 }
 
 export interface Collection {
@@ -29,6 +30,7 @@ interface CollectionState {
   deleteCollection: (id: string) => void;
   addListToCollection: (collectionId: string, list: ListConfig) => void;
   renameList: (collectionId: string, listId: string, name: string) => void;
+  updateListColor: (collectionId: string, listId: string, color: string) => void;
   removeList: (collectionId: string, listId: string) => void;
 }
 
@@ -78,6 +80,19 @@ const useCollectionStore = create<CollectionState>((set) => ({
               ...c,
               lists: c.lists.map((l) =>
                 l.id === listId ? { ...l, name } : l,
+              ),
+            }
+          : c,
+      ),
+    })),
+  updateListColor: (collectionId, listId, color) =>
+    set((state) => ({
+      collections: state.collections.map((c) =>
+        c.id === collectionId
+          ? {
+              ...c,
+              lists: c.lists.map((l) =>
+                l.id === listId ? { ...l, backgroundColor: color } : l,
               ),
             }
           : c,

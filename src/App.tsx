@@ -159,6 +159,7 @@ function App() {
                   title={listConfig.name}
                   droppableId={listConfig.id}
                   onDelete={deleteItem}
+                  backgroundColor={listConfig.backgroundColor}
                 />
               </Col>
             ))}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Button,
+  ColorPicker,
   Drawer,
   Form,
   Input,
@@ -33,7 +34,7 @@ export default function ManageCollectionDrawer({
   collection,
   onClose,
 }: ManageCollectionDrawerProps) {
-  const { updateCollection, deleteCollection, addListToCollection, renameList, removeList } =
+  const { updateCollection, deleteCollection, addListToCollection, renameList, updateListColor, removeList } =
     useCollectionStore();
   const { moveAllItemsFromList, deleteItemsByCollection, list } = useBearStore();
 
@@ -229,6 +230,19 @@ export default function ManageCollectionDrawer({
                 )}
                 {renamingId !== l.id && (
                   <>
+                    <ColorPicker
+                      size="small"
+                      value={l.backgroundColor ?? "#ffffff"}
+                      presets={[
+                        {
+                          label: "Recommended",
+                          colors: ["#ffffff", "#f6ffed", "#fff7e6", "#e6f4ff", "#fff1f0", "#f9f0ff", "#e6fffb", "#fffbe6"],
+                        },
+                      ]}
+                      onChange={(color) =>
+                        updateListColor(collection.id, l.id, color.toHexString())
+                      }
+                    />
                     <Button
                       size="small"
                       icon={<EditOutlined />}
