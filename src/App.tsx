@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Card, Col, Empty, Row, Select, Space } from "antd";
-import { OrderedListOutlined, SettingOutlined } from "@ant-design/icons";
+import { LogoutOutlined, OrderedListOutlined, SettingOutlined } from "@ant-design/icons";
+import useAuthStore from "./store/useAuthStore";
 import {
   DndContext,
   closestCenter,
@@ -33,6 +34,7 @@ function App() {
     useBearStore();
   const { collections, activeCollectionId, selectCollection } =
     useCollectionStore();
+  const logout = useAuthStore((s) => s.logout);
 
   const activeCollection =
     collections.find((c) => c.id === activeCollectionId) ?? null;
@@ -155,6 +157,7 @@ function App() {
             <Button onClick={() => setCollectionDrawerOpen(true)}>
               New Collection
             </Button>
+            <Button icon={<LogoutOutlined />} onClick={logout} title="Sign out" />
           </Space>
         </Col>
       </Row>
