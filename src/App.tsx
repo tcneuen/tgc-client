@@ -11,6 +11,7 @@ import {
   useSensors,
   DragOverlay,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -31,6 +32,7 @@ function App() {
   const [manageDrawerOpen, setManageDrawerOpen] = useState(false);
   const [rankingsOpen, setRankingsOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [dragOverListId, setDragOverListId] = useState<string | null>(null);
 
   const { activeCollectionId, selectCollection } = useCollectionStore();
   const logout = useAuthStore((s) => s.logout);
@@ -58,8 +60,28 @@ function App() {
     setActiveId(Number(event.active.id));
   };
 
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over || !activeCollection) { setDragOverListId(null); return; }
+    const activeItem = items.find((i) => i.id === Number(active.id));
+    if (!activeItem) { setDragOverListId(null); return; }
+    const overId = String(over.id);
+    const overList = activeCollection.lists.find((l) => l.id === overId);
+    if (overList) {
+      setDragOverListId(overList.id !== activeItem.listId ? overList.id : null);
+      return;
+    }
+    const overItem = items.find((i) => i.id === Number(overId));
+    if (overItem) {
+      setDragOverListId(overItem.listId !== activeItem.listId ? overItem.listId : null);
+      return;
+    }
+    setDragOverListId(null);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveId(null);
+    setDragOverListId(null);
     const { active, over } = event;
     if (!over || !activeCollection || !activeCollectionId) return;
 
@@ -164,7 +186,9 @@ function App() {
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => { setActiveId(null); setDragOverListId(null); }}
     >
       {/* Header: action buttons left, collection controls right */}
       <Row
@@ -253,6 +277,7 @@ function App() {
                     title={listConfig.name}
                     droppableId={listConfig.id}
                     isLoading={itemsFetching}
+                    isDropTarget={dragOverListId === listConfig.id}
                     onDelete={(id) =>
                       deleteItem.mutate({
                         collectionId: activeCollectionId,

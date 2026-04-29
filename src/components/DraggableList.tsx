@@ -111,6 +111,7 @@ interface DraggableListProps {
   backgroundColor?: string;
   startingRating?: number;
   isLoading?: boolean;
+  isDropTarget?: boolean;
 }
 
 export default function DraggableList({
@@ -123,6 +124,7 @@ export default function DraggableList({
   backgroundColor = "#ffffff",
   startingRating,
   isLoading = false,
+  isDropTarget = false,
 }: DraggableListProps) {
   const [editingItem, setEditingItem] = useState<ApiItem | null>(null);
   const [ratingItem, setRatingItem] = useState<ApiItem | null>(null);
@@ -153,10 +155,14 @@ export default function DraggableList({
       style={{
         backgroundColor,
         borderRadius: token.borderRadius,
-        border: `1px solid ${token.colorBorderSecondary}`,
+        border: isDropTarget
+          ? `2px solid ${token.colorPrimary}`
+          : `1px solid ${token.colorBorderSecondary}`,
+        boxShadow: isDropTarget ? `0 0 0 3px ${token.colorPrimaryBg}` : undefined,
         display: "flex",
         flexDirection: "column",
         height: "calc(100vh - 130px)",
+        transition: "border-color 0.15s, box-shadow 0.15s",
       }}
     >
       {/* Header */}
