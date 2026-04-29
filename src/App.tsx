@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Card, Col, Empty, Row, Select, Space } from "antd";
-import { SettingOutlined } from "@ant-design/icons";
+import { ExportOutlined, SettingOutlined } from "@ant-design/icons";
 import {
   DndContext,
   closestCenter,
@@ -83,6 +83,38 @@ function App() {
     ? list.filter((i) => i.collectionId === activeCollectionId)
     : [];
 
+  const handleExport = () => {
+    if (!activeCollection) return;
+    const collectionItems = list.filter(
+      (i) => i.collectionId === activeCollectionId,
+    );
+    const data = {
+      collection: {
+        id: activeCollection.id,
+        name: activeCollection.name,
+        defaultListId: activeCollection.defaultListId,
+      },
+      lists: activeCollection.lists.map((l) => ({
+        id: l.id,
+        name: l.name,
+        protected: l.protected ?? false,
+        backgroundColor: l.backgroundColor,
+        startingRating: l.startingRating,
+        items: collectionItems
+          .filter((i) => i.listId === l.id)
+          .sort((a, b) => a.order - b.order)
+          .map((i) => ({ id: i.id, name: i.name, description: i.description, order: i.order })),
+      })),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${activeCollection.name.replace(/[^a-z0-9]/gi, "_")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const colSpan = activeCollection
     ? Math.floor(24 / activeCollection.lists.length)
     : 12;
@@ -139,6 +171,14 @@ function App() {
                 icon={<SettingOutlined />}
                 onClick={() => setManageDrawerOpen(true)}
               />
+            )}
+            {activeCollectionId && (
+              <Button
+                icon={<ExportOutlined />}
+                onClick={handleExport}
+              >
+                Export
+              </Button>
             )}
             <Button onClick={() => setCollectionDrawerOpen(true)}>
               New Collection
