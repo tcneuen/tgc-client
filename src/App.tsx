@@ -68,17 +68,25 @@ function App() {
     const activeItem = items.find((i) => i.id === activeItemId);
     if (!activeItem) return;
 
-    // Helper: get items in a list in linked-list order
+    // Helper: get items in a list in linked-list order (handles orphan items)
     const listItemsOrdered = (listId: string) => {
       const listItems = items.filter((i) => i.listId === listId);
       const byId = new Map(listItems.map((i) => [i.id, i]));
-      let cur = listItems.find((i) => i.prevId === null);
+      const visited = new Set<number>();
       const result: typeof listItems = [];
-      const seen = new Set<number>();
-      while (cur && !seen.has(cur.id)) {
-        result.push(cur);
-        seen.add(cur.id);
-        cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
+      const heads = listItems.filter(
+        (i) => i.prevId === null || !byId.has(i.prevId),
+      );
+      for (const head of heads) {
+        let cur: typeof listItems[0] | undefined = head;
+        while (cur && !visited.has(cur.id)) {
+          result.push(cur);
+          visited.add(cur.id);
+          cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
+        }
+      }
+      for (const i of listItems) {
+        if (!visited.has(i.id)) result.push(i);
       }
       return result;
     };

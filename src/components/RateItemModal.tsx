@@ -44,15 +44,23 @@ export default function RateItemModal({ item, open, onClose }: Props) {
         i.id !== item.id,
     );
     const byId = new Map(listItems.map((i) => [i.id, i]));
-    let cur: typeof listItems[0] | undefined = listItems.find(
+    const visited = new Set<number>();
+    const result: typeof listItems = [];
+    // Walk each chain from its head; handles orphans (no links) as single-element chains
+    const heads = listItems.filter(
       (i) => i.prevId === null || !byId.has(i.prevId),
     );
-    const result: typeof listItems = [];
-    const seen = new Set<number>();
-    while (cur && !seen.has(cur.id)) {
-      result.push(cur);
-      seen.add(cur.id);
-      cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
+    for (const head of heads) {
+      let cur: typeof listItems[0] | undefined = head;
+      while (cur && !visited.has(cur.id)) {
+        result.push(cur);
+        visited.add(cur.id);
+        cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
+      }
+    }
+    // Append any broken-chain items
+    for (const i of listItems) {
+      if (!visited.has(i.id)) result.push(i);
     }
     return result;
   };
@@ -61,10 +69,13 @@ export default function RateItemModal({ item, open, onClose }: Props) {
     if (!selectedListId) return;
     const listItems = getListItems(selectedListId);
     if (listItems.length === 0) {
-      moveItem.mutate(
-        { collectionId: item.collectionId, itemId: item.id, listId: selectedListId, afterId: null },
-        { onSuccess: handleClose },
-      );
+      handleClose();
+      moveItem.mutate({
+        collectionId: item.collectionId,
+        itemId: item.id,
+        listId: selectedListId,
+        afterId: null,
+      });
       return;
     }
     setLow(0);
@@ -79,10 +90,13 @@ export default function RateItemModal({ item, open, onClose }: Props) {
   const placeAt = (index: number) => {
     // afterId = the item at index-1 (null means insert at head)
     const afterId = index > 0 ? listItems[index - 1].id : null;
-    moveItem.mutate(
-      { collectionId: item.collectionId, itemId: item.id, listId: selectedListId, afterId },
-      { onSuccess: handleClose },
-    );
+    handleClose();
+    moveItem.mutate({
+      collectionId: item.collectionId,
+      itemId: item.id,
+      listId: selectedListId,
+      afterId,
+    });
   };
 
   const handleBetter = () => {
