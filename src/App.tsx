@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Card, Col, Empty, Row, Select, Space } from "antd";
-import { ExportOutlined, ImportOutlined, SettingOutlined } from "@ant-design/icons";
+import { SettingOutlined } from "@ant-design/icons";
 import {
   DndContext,
   closestCenter,
@@ -144,29 +144,6 @@ function App() {
                 onClick={() => setManageDrawerOpen(true)}
               />
             )}
-            {activeCollectionId && (
-              <Button
-                icon={<ExportOutlined />}
-                onClick={handleExport}
-              >
-                Export
-              </Button>
-            )}
-            <>
-              <input
-                ref={importInputRef}
-                type="file"
-                accept=".json"
-                style={{ display: "none" }}
-                onChange={handleImport}
-              />
-              <Button
-                icon={<ImportOutlined />}
-                onClick={() => openImportDialog()}
-              >
-                Import
-              </Button>
-            </>
             <Button onClick={() => setCollectionDrawerOpen(true)}>
               New Collection
             </Button>
@@ -234,10 +211,20 @@ function App() {
       )}
 
       {/* New Collection Drawer */}
-      <CollectionDrawer
-        open={collectionDrawerOpen}
-        onClose={() => setCollectionDrawerOpen(false)}
-      />
+      <>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".json"
+          style={{ display: "none" }}
+          onChange={handleImport}
+        />
+        <CollectionDrawer
+          open={collectionDrawerOpen}
+          onClose={() => setCollectionDrawerOpen(false)}
+          onImport={openImportDialog}
+        />
+      </>
 
       {/* Manage Collection Drawer */}
       {activeCollection && (
@@ -245,6 +232,7 @@ function App() {
           open={manageDrawerOpen}
           collection={activeCollection}
           onClose={() => setManageDrawerOpen(false)}
+          onExport={handleExport}
         />
       )}
     </DndContext>

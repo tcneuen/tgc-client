@@ -14,6 +14,8 @@ import {
 import {
   DeleteOutlined,
   EditOutlined,
+  ExportOutlined,
+  ImportOutlined,
   PlusOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
@@ -205,12 +207,16 @@ interface CollectionDrawerProps {
   onClose: () => void;
   /** If provided, the drawer operates in "manage" mode; otherwise "create" mode. */
   collection?: Collection;
+  onExport?: () => void;
+  onImport?: () => void;
 }
 
 export default function CollectionDrawer({
   open,
   onClose,
   collection,
+  onExport,
+  onImport,
 }: CollectionDrawerProps) {
   const {
     createCollection,
@@ -408,14 +414,28 @@ export default function CollectionDrawer({
                   Delete Collection
                 </Button>
               </Popconfirm>
-              <Button onClick={handleClose}>Close</Button>
+              <Space>
+                {onExport && (
+                  <Button icon={<ExportOutlined />} onClick={onExport}>
+                    Export
+                  </Button>
+                )}
+                <Button onClick={handleClose}>Close</Button>
+              </Space>
             </div>
           ) : (
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <Button onClick={handleClose}>Cancel</Button>
-              <Button type="primary" onClick={handleCreate}>
-                Create
-              </Button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              {onImport ? (
+                <Button icon={<ImportOutlined />} onClick={onImport}>
+                  Import
+                </Button>
+              ) : <span />}
+              <Space>
+                <Button onClick={handleClose}>Cancel</Button>
+                <Button type="primary" onClick={handleCreate}>
+                  Create
+                </Button>
+              </Space>
             </div>
           )
         }
