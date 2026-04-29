@@ -112,7 +112,9 @@ export default function RateItemModal({ item, open, onClose }: Props) {
             placeholder="Select a list"
             value={selectedListId || undefined}
             onChange={setSelectedListId}
-            options={collection.lists.map((l) => ({
+            options={collection.lists
+              .filter((l) => !l.protected)
+              .map((l) => ({
               value: l.id,
               label: l.name,
             }))}

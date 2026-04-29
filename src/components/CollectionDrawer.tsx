@@ -182,7 +182,7 @@ function ListRow({
               disabled={!!list.protected || totalUserLists <= 1}
               title={
                 list.protected
-                  ? "Cannot delete the Ungraded list"
+                  ? "Cannot delete the Unrated list"
                   : totalUserLists <= 1
                     ? "Cannot delete the only list"
                     : undefined
@@ -462,7 +462,7 @@ export default function CollectionDrawer({
             }}
           >
             <span style={{ flex: 1 }}>
-              Ungraded{" "}
+              Unrated{" "}
               <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                 (default, always present)
               </Typography.Text>

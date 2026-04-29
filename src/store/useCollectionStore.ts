@@ -43,7 +43,7 @@ const useCollectionStore = create<CollectionState>((set) => ({
     set((state) => {
       const id = crypto.randomUUID();
       const ungradedId = crypto.randomUUID();
-      const ungraded: ListConfig = { id: ungradedId, name: "Ungraded", protected: true };
+      const ungraded: ListConfig = { id: ungradedId, name: "Unrated", protected: true };
       const newCollection: Collection = {
         id,
         name,
