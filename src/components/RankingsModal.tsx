@@ -1,6 +1,5 @@
 import { Modal, Table } from "antd";
-import type { ListItem } from "../store/useBearStore";
-import type { Collection } from "../store/useCollectionStore";
+import type { ApiItem, ApiCollection } from "../types/api";
 
 interface RankedRow {
   key: number;
@@ -13,8 +12,8 @@ interface RankedRow {
 interface RankingsModalProps {
   open: boolean;
   onClose: () => void;
-  collection: Collection | null;
-  items: ListItem[];
+  collection: ApiCollection | null;
+  items: ApiItem[];
 }
 
 export default function RankingsModal({
@@ -33,7 +32,7 @@ export default function RankingsModal({
   const rows: RankedRow[] = [];
 
   sortedLists.forEach((listConfig, idx) => {
-    if (listConfig.startingRating === undefined) return;
+    if (listConfig.startingRating === null) return;
 
     const ceiling =
       idx === 0 ? 10 : (sortedLists[idx - 1].startingRating ?? 10);

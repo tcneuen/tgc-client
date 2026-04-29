@@ -1,10 +1,10 @@
 import { Button, Drawer, Form, Input, Select } from "antd";
-import type { Collection } from "../store/useCollectionStore";
-import useBearStore from "../store/useBearStore";
+import type { ApiCollection } from "../types/api";
+import { useCreateItem } from "../hooks/useItems";
 
 interface AddItemDrawerProps {
   open: boolean;
-  collection: Collection;
+  collection: ApiCollection;
   onClose: () => void;
 }
 
@@ -18,7 +18,7 @@ export default function AddItemDrawer({
     description: string;
     listId: string;
   }>();
-  const addItem = useBearStore((s) => s.addItem);
+  const createItem = useCreateItem();
 
   const handleOpen = () => {
     form.setFieldValue("listId", collection.defaultListId);
@@ -26,9 +26,10 @@ export default function AddItemDrawer({
 
   const handleAdd = () => {
     form.validateFields().then(({ name, description, listId }) => {
-      addItem(name.trim(), description.trim(), collection.id, listId);
-      form.resetFields();
-      onClose();
+      createItem.mutate(
+        { collectionId: collection.id, name: name.trim(), description: description.trim(), listId },
+        { onSuccess: () => { form.resetFields(); onClose(); } },
+      );
     });
   };
 

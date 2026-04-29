@@ -19,11 +19,17 @@ import {
   PlusOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
-import useCollectionStore, {
-  type Collection,
-  type ListConfig,
-} from "../store/useCollectionStore";
-import useBearStore from "../store/useBearStore";
+import type { ApiCollection, ApiList } from "../types/api";
+import useCollectionStore from "../store/useCollectionStore";
+import {
+  useCreateCollection,
+  useUpdateCollection,
+  useDeleteCollection,
+  useCreateList,
+  useUpdateList,
+  useDeleteList,
+} from "../hooks/useCollections";
+import { useItems } from "../hooks/useItems";
 
 const PRESET_COLORS = [
   "#ffffff",
@@ -36,17 +42,26 @@ const PRESET_COLORS = [
   "#fffbe6",
 ];
 
+// ─── Draft list type (create mode only) ──────────────────────────────────────
+
+interface DraftList {
+  id: string;
+  name: string;
+  startingRating?: number;
+  backgroundColor?: string;
+}
+
 // ─── Shared list row ──────────────────────────────────────────────────────────
 
 interface ListRowProps {
-  list: ListConfig;
+  list: ApiList | DraftList;
   totalUserLists: number;
   itemCount?: number;
   usedRatings: Set<number>;
   onColorChange: (id: string, color: string) => void;
   onRename: (id: string, name: string) => void;
   onRatingChange: (id: string, rating: number | undefined) => void;
-  onDelete: (list: ListConfig) => void;
+  onDelete: (list: ApiList | DraftList) => void;
 }
 
 function ListRow({
@@ -61,9 +76,10 @@ function ListRow({
 }: ListRowProps) {
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(list.name);
-  const [ratingInput, setRatingInput] = useState(
-    list.startingRating !== undefined ? list.startingRating.toFixed(2) : "",
-  );
+  const isProtected = "protected" in list ? list.protected : false;
+  const initRating =
+    list.startingRating != null ? list.startingRating.toFixed(2) : "";
+  const [ratingInput, setRatingInput] = useState(initRating);
   const [ratingError, setRatingError] = useState("");
 
   const saveRename = () => {
@@ -99,6 +115,9 @@ function ListRow({
     onRatingChange(list.id, parsed);
   };
 
+  const bgColor =
+    list.backgroundColor != null ? list.backgroundColor : "#ffffff";
+
   return (
     <div
       style={{
@@ -108,7 +127,7 @@ function ListRow({
         padding: "8px",
         border: "1px solid #f0f0f0",
         borderRadius: "6px",
-        backgroundColor: list.backgroundColor ?? "#ffffff",
+        backgroundColor: bgColor,
       }}
     >
       {renaming ? (
@@ -129,7 +148,7 @@ function ListRow({
               ({itemCount} item{itemCount !== 1 ? "s" : ""})
             </Typography.Text>
           )}
-          {list.protected && (
+          {isProtected && (
             <Typography.Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>
               (default)
             </Typography.Text>
@@ -139,54 +158,54 @@ function ListRow({
 
       {!renaming && (
         <>
-          {!list.protected && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-            <Input
-              size="small"
-              placeholder="Rating"
-              value={ratingInput}
-              onChange={(e) => { setRatingInput(e.target.value); setRatingError(""); }}
-              onBlur={handleRatingBlur}
-              onPressEnter={handleRatingBlur}
-              style={{ width: 70, textAlign: "right" }}
-              status={ratingError ? "error" : ""}
-            />
-            {ratingError && (
-              <Typography.Text type="danger" style={{ fontSize: 10 }}>{ratingError}</Typography.Text>
-            )}
-          </div>
+          {!isProtected && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+              <Input
+                size="small"
+                placeholder="Rating"
+                value={ratingInput}
+                onChange={(e) => { setRatingInput(e.target.value); setRatingError(""); }}
+                onBlur={handleRatingBlur}
+                onPressEnter={handleRatingBlur}
+                style={{ width: 70, textAlign: "right" }}
+                status={ratingError ? "error" : ""}
+              />
+              {ratingError && (
+                <Typography.Text type="danger" style={{ fontSize: 10 }}>{ratingError}</Typography.Text>
+              )}
+            </div>
           )}
           <ColorPicker
             size="small"
-            value={list.backgroundColor ?? "#ffffff"}
+            value={bgColor}
             presets={[{ label: "Presets", colors: PRESET_COLORS }]}
             onChange={(color) => onColorChange(list.id, color.toHexString())}
           />
           <Button
             size="small"
             icon={<EditOutlined />}
-            disabled={!!list.protected}
+            disabled={isProtected}
             onClick={() => { setDraft(list.name); setRenaming(true); }}
           />
           <Popconfirm
             title={`Delete "${list.name}"?`}
             description={
               itemCount !== undefined && itemCount > 0
-                ? `${itemCount} item${itemCount !== 1 ? "s" : ""} will need to be moved.`
+                ? `${itemCount} item${itemCount !== 1 ? "s" : ""} will be moved or deleted.`
                 : "This list has no items."
             }
             okText="Delete"
             okButtonProps={{ danger: true }}
-            disabled={!!list.protected || totalUserLists <= 1}
+            disabled={isProtected || totalUserLists <= 1}
             onConfirm={() => onDelete(list)}
           >
             <Button
               size="small"
               danger
               icon={<DeleteOutlined />}
-              disabled={!!list.protected || totalUserLists <= 1}
+              disabled={isProtected || totalUserLists <= 1}
               title={
-                list.protected
+                isProtected
                   ? "Cannot delete the Unrated list"
                   : totalUserLists <= 1
                     ? "Cannot delete the only list"
@@ -206,7 +225,7 @@ interface CollectionDrawerProps {
   open: boolean;
   onClose: () => void;
   /** If provided, the drawer operates in "manage" mode; otherwise "create" mode. */
-  collection?: Collection;
+  collection?: ApiCollection;
   onExport?: () => void;
   onImport?: () => void;
 }
@@ -218,24 +237,21 @@ export default function CollectionDrawer({
   onExport,
   onImport,
 }: CollectionDrawerProps) {
-  const {
-    createCollection,
-    updateCollection,
-    deleteCollection,
-    addListToCollection,
-    updateListColor,
-    updateListRating,
-    renameList,
-    removeList,
-  } = useCollectionStore();
-  const { moveAllItemsFromList, deleteItemsByCollection, list: storeList } =
-    useBearStore();
+  const { selectCollection, clearSelection } = useCollectionStore();
+  const createCollection = useCreateCollection();
+  const updateCollection = useUpdateCollection();
+  const deleteCollection = useDeleteCollection();
+  const createList = useCreateList();
+  const updateList = useUpdateList();
+  const deleteList = useDeleteList();
+
+  const { data: allItems = [] } = useItems(collection?.id ?? null);
 
   const isManage = !!collection;
 
   // ── Create-mode state ──
   const [form] = Form.useForm<{ name: string }>();
-  const [draftLists, setDraftLists] = useState<ListConfig[]>([]);
+  const [draftLists, setDraftLists] = useState<DraftList[]>([]);
 
   // ── Manage-mode state ──
   const [collName, setCollName] = useState(collection?.name ?? "");
@@ -256,7 +272,7 @@ export default function CollectionDrawer({
   useEffect(() => {
     if (collection) {
       setCollName(collection.name);
-      setDefaultListId(collection.defaultListId);
+      setDefaultListId(collection.defaultListId ?? "");
     }
   }, [collection]);
 
@@ -292,80 +308,95 @@ export default function CollectionDrawer({
       return;
     }
 
-    const newList: ListConfig = {
-      id: crypto.randomUUID(),
-      name: trimmed,
-      startingRating: parsedRating,
-    };
     if (isManage && collection) {
-      addListToCollection(collection.id, newList);
+      createList.mutate({
+        collectionId: collection.id,
+        name: trimmed,
+        startingRating: parsedRating,
+      });
     } else {
-      setDraftLists((prev) => [...prev, newList]);
+      setDraftLists((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), name: trimmed, startingRating: parsedRating },
+      ]);
     }
     setNewListName("");
     setNewListRating("");
     setNewListRatingError("");
   };
 
+  // Draft-mode helpers
   const handleDraftColorChange = (id: string, color: string) =>
     setDraftLists((prev) =>
       prev.map((l) => (l.id === id ? { ...l, backgroundColor: color } : l)),
     );
-
   const handleDraftRatingChange = (id: string, rating: number | undefined) =>
     setDraftLists((prev) =>
       prev.map((l) => (l.id === id ? { ...l, startingRating: rating } : l)),
     );
-
   const handleDraftRename = (id: string, name: string) =>
     setDraftLists((prev) =>
       prev.map((l) => (l.id === id ? { ...l, name } : l)),
     );
-
-  const handleDraftDelete = (l: ListConfig) =>
+  const handleDraftDelete = (l: DraftList) =>
     setDraftLists((prev) => prev.filter((d) => d.id !== l.id));
 
-  const handleManageDeleteList = (l: ListConfig) => {
+  // Manage-mode list deletion with optional item move
+  const handleManageDeleteList = (l: ApiList) => {
     if (!collection) return;
-    const hasItems = storeList.some(
+    const hasItems = allItems.some(
       (i) => i.collectionId === collection.id && i.listId === l.id,
     );
-    const others = collection.lists.filter((ol) => ol.id !== l.id);
+    const others = collection.lists.filter((ol) => ol.id !== l.id && !ol.protected);
     if (hasItems && others.length > 0) {
       setMoveToListId(others[0].id);
       setDeleteListModal({ listId: l.id, listName: l.name });
     } else {
-      if (hasItems) moveAllItemsFromList(collection.id, l.id, "");
-      removeList(collection.id, l.id);
+      deleteList.mutate({ collectionId: collection.id, listId: l.id });
     }
   };
 
   const handleConfirmDeleteList = () => {
     if (!deleteListModal || !collection) return;
-    if (moveToListId) {
-      moveAllItemsFromList(collection.id, deleteListModal.listId, moveToListId);
-    }
-    removeList(collection.id, deleteListModal.listId);
+    deleteList.mutate({
+      collectionId: collection.id,
+      listId: deleteListModal.listId,
+      moveToListId: moveToListId || undefined,
+      items: allItems,
+    });
     setDeleteListModal(null);
   };
 
   const handleCreate = () => {
     form.validateFields().then(({ name }) => {
-      createCollection(name, draftLists);
-      handleClose();
+      createCollection.mutate(
+        { name, draftLists },
+        {
+          onSuccess: (newId) => {
+            selectCollection(newId);
+            handleClose();
+          },
+        },
+      );
     });
   };
 
   const handleSaveCollection = () => {
     if (!collName.trim() || !collection) return;
-    updateCollection(collection.id, collName.trim(), defaultListId);
+    updateCollection.mutate({
+      id: collection.id,
+      name: collName.trim(),
+    });
   };
 
   const handleDeleteCollection = () => {
     if (!collection) return;
-    deleteItemsByCollection(collection.id);
-    deleteCollection(collection.id);
-    onClose();
+    deleteCollection.mutate(collection.id, {
+      onSuccess: () => {
+        clearSelection();
+        onClose();
+      },
+    });
   };
 
   const handleClose = () => {
@@ -379,12 +410,16 @@ export default function CollectionDrawer({
 
   // ── Derived ──────────────────────────────────────────────────────────────
 
-  const displayLists = isManage ? (collection?.lists ?? []) : draftLists;
-  const userListCount = displayLists.filter((l) => !l.protected).length;
+  const displayLists: (ApiList | DraftList)[] = isManage
+    ? (collection?.lists ?? [])
+    : draftLists;
+  const userListCount = displayLists.filter(
+    (l) => !("protected" in l && l.protected),
+  ).length;
   const usedRatings = new Set(
     displayLists
       .map((l) => l.startingRating)
-      .filter((r): r is number => r !== undefined),
+      .filter((r): r is number => r != null),
   );
   const moveTargetOptions = (collection?.lists ?? [])
     .filter((l) => l.id !== deleteListModal?.listId)
@@ -410,7 +445,7 @@ export default function CollectionDrawer({
                 okButtonProps={{ danger: true }}
                 onConfirm={handleDeleteCollection}
               >
-                <Button danger icon={<DeleteOutlined />}>
+                <Button danger icon={<DeleteOutlined />} loading={deleteCollection.isPending}>
                   Delete Collection
                 </Button>
               </Popconfirm>
@@ -432,7 +467,11 @@ export default function CollectionDrawer({
               ) : <span />}
               <Space>
                 <Button onClick={handleClose}>Cancel</Button>
-                <Button type="primary" onClick={handleCreate}>
+                <Button
+                  type="primary"
+                  onClick={handleCreate}
+                  loading={createCollection.isPending}
+                >
                   Create
                 </Button>
               </Space>
@@ -475,6 +514,7 @@ export default function CollectionDrawer({
                   disabled={
                     !collName.trim() || collName.trim() === collection.name
                   }
+                  loading={updateCollection.isPending}
                 >
                   Save
                 </Button>
@@ -482,14 +522,13 @@ export default function CollectionDrawer({
             </Form.Item>
             <Form.Item label="Default List for New Items">
               <Select
-                value={defaultListId}
+                value={defaultListId || undefined}
                 onChange={(v) => {
                   setDefaultListId(v);
-                  updateCollection(
-                    collection.id,
-                    collName.trim() || collection.name,
-                    v,
-                  );
+                  updateCollection.mutate({
+                    id: collection.id,
+                    defaultListId: v,
+                  });
                 }}
                 options={collection.lists.map((l) => ({
                   value: l.id,
@@ -506,7 +545,7 @@ export default function CollectionDrawer({
           Lists
         </Typography.Title>
 
-        {/* Locked Ungraded placeholder shown only in create mode */}
+        {/* Locked Unrated placeholder shown only in create mode */}
         {!isManage && (
           <div
             style={{
@@ -534,7 +573,7 @@ export default function CollectionDrawer({
           {displayLists.map((l) => {
             const itemCount =
               isManage && collection
-                ? storeList.filter(
+                ? allItems.filter(
                     (i) =>
                       i.collectionId === collection.id && i.listId === l.id,
                   ).length
@@ -549,77 +588,81 @@ export default function CollectionDrawer({
                 usedRatings={usedRatings}
                 onColorChange={
                   isManage && collection
-                    ? (id, color) => updateListColor(collection.id, id, color)
+                    ? (id, color) =>
+                        updateList.mutate({ collectionId: collection.id, listId: id, backgroundColor: color })
                     : handleDraftColorChange
                 }
                 onRename={
                   isManage && collection
-                    ? (id, name) => renameList(collection.id, id, name)
+                    ? (id, name) =>
+                        updateList.mutate({ collectionId: collection.id, listId: id, name })
                     : handleDraftRename
                 }
                 onRatingChange={
                   isManage && collection
-                    ? (id, rating) => updateListRating(collection.id, id, rating)
+                    ? (id, rating) =>
+                        updateList.mutate({ collectionId: collection.id, listId: id, startingRating: rating ?? null })
                     : handleDraftRatingChange
                 }
-                onDelete={isManage ? handleManageDeleteList : handleDraftDelete}
+                onDelete={
+                  isManage && collection
+                    ? (list) => handleManageDeleteList(list as ApiList)
+                    : (list) => handleDraftDelete(list as DraftList)
+                }
               />
             );
           })}
         </div>
 
-        <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
-          <Space.Compact style={{ width: "100%" }}>
+        {/* Add list form */}
+        <div style={{ marginTop: 16 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            Add a list
+          </Typography.Text>
+          <Space.Compact style={{ width: "100%", marginTop: 4 }}>
             <Input
-              placeholder="New list name"
+              placeholder="List name"
               value={newListName}
               onChange={(e) => setNewListName(e.target.value)}
               onPressEnter={handleAddList}
+              style={{ flex: 2 }}
             />
-            <Input
-              placeholder="Rating"
-              value={newListRating}
-              onChange={(e) => {
-                setNewListRating(e.target.value);
-                setNewListRatingError("");
-              }}
-              onBlur={() => {
-                const parsed = parseFloat(newListRating);
-                if (!Number.isNaN(parsed) && /^\d+(\.\d{1,2})?$/.test(newListRating.trim())) {
-                  setNewListRating(parsed.toFixed(2));
-                }
-              }}
-              onPressEnter={handleAddList}
-              style={{ width: 90, textAlign: "right" }}
-              status={newListRatingError ? "error" : ""}
-            />
-            <Button icon={<PlusOutlined />} onClick={handleAddList}>
-              Add List
-            </Button>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+              <Input
+                placeholder="Rating"
+                value={newListRating}
+                onChange={(e) => { setNewListRating(e.target.value); setNewListRatingError(""); }}
+                onPressEnter={handleAddList}
+                status={newListRatingError ? "error" : ""}
+              />
+            </div>
+            <Button icon={<PlusOutlined />} onClick={handleAddList} />
           </Space.Compact>
           {newListRatingError && (
             <Typography.Text type="danger" style={{ fontSize: 11 }}>
-              Rating: {newListRatingError}
+              {newListRatingError}
             </Typography.Text>
           )}
         </div>
       </Drawer>
 
-      {/* Move-items modal (manage only) */}
+      {/* Delete-list + move items modal */}
       <Modal
-        title={`Delete "${deleteListModal?.listName}"`}
         open={!!deleteListModal}
-        onCancel={() => setDeleteListModal(null)}
-        onOk={handleConfirmDeleteList}
-        okText="Delete & Move"
+        title={`Delete "${deleteListModal?.listName}"?`}
+        okText="Delete List"
         okButtonProps={{ danger: true }}
+        onOk={handleConfirmDeleteList}
+        onCancel={() => setDeleteListModal(null)}
       >
-        <p>Select which list to move all items to before deleting:</p>
+        <Typography.Text>
+          This list has items. Move them to another list before deleting:
+        </Typography.Text>
         <Select
+          style={{ width: "100%", marginTop: 8 }}
           value={moveToListId}
           onChange={setMoveToListId}
           options={moveTargetOptions}
-          style={{ width: "100%" }}
         />
       </Modal>
     </>

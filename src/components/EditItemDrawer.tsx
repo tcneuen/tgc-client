@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { Button, Drawer, Form, Input } from "antd";
-import type { ListItem } from "../store/useBearStore";
-import useBearStore from "../store/useBearStore";
+import type { ApiItem } from "../types/api";
+import { useUpdateItem } from "../hooks/useItems";
 
 interface EditItemDrawerProps {
-  item: ListItem | null;
+  item: ApiItem | null;
   open: boolean;
   onClose: () => void;
 }
@@ -15,7 +15,7 @@ export default function EditItemDrawer({
   onClose,
 }: EditItemDrawerProps) {
   const [form] = Form.useForm<{ name: string; description: string }>();
-  const updateItem = useBearStore((s) => s.updateItem);
+  const updateItem = useUpdateItem();
 
   useEffect(() => {
     if (item && open) {
@@ -26,10 +26,11 @@ export default function EditItemDrawer({
   const handleSave = () => {
     form.validateFields().then(({ name, description }) => {
       if (item) {
-        updateItem(item.id, name.trim(), description.trim());
+        updateItem.mutate(
+          { collectionId: item.collectionId, itemId: item.id, name: name.trim(), description: description.trim() },
+          { onSuccess: () => { form.resetFields(); onClose(); } },
+        );
       }
-      form.resetFields();
-      onClose();
     });
   };
 

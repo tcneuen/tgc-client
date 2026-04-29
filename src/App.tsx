@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, Col, Empty, Row, Select, Space } from "antd";
+import { Button, Card, Col, Empty, Row, Select, Space, Spin } from "antd";
 import { LogoutOutlined, OrderedListOutlined, SettingOutlined } from "@ant-design/icons";
 import useAuthStore from "./store/useAuthStore";
 import {
@@ -18,10 +18,12 @@ import AddItemDrawer from "./components/AddItemDrawer";
 import DraggableList from "./components/DraggableList";
 import CollectionDrawer from "./components/CollectionDrawer";
 import RankingsModal from "./components/RankingsModal";
-import useBearStore from "./store/useBearStore";
 import useCollectionStore from "./store/useCollectionStore";
 import { seedList } from "./utils/seed";
 import { useImportExport } from "./hooks/useImportExport";
+import { useCollections } from "./hooks/useCollections";
+import { useItems, useDeleteItem, useMoveItem, itemsKey } from "./hooks/useItems";
+import { useQueryClient } from "@tanstack/react-query";
 
 function App() {
   const [addItemOpen, setAddItemOpen] = useState(false);
@@ -30,17 +32,20 @@ function App() {
   const [rankingsOpen, setRankingsOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
 
-  const { list, deleteItem, reorderItemsInList, moveItemToList } =
-    useBearStore();
-  const { collections, activeCollectionId, selectCollection } =
-    useCollectionStore();
+  const { activeCollectionId, selectCollection } = useCollectionStore();
   const logout = useAuthStore((s) => s.logout);
+  const qc = useQueryClient();
+
+  const { data: collections = [], isLoading: collectionsLoading } = useCollections();
+  const { data: items = [] } = useItems(activeCollectionId);
+  const deleteItem = useDeleteItem();
+  const moveItem = useMoveItem();
 
   const activeCollection =
     collections.find((c) => c.id === activeCollectionId) ?? null;
 
   const { importInputRef, handleExport, handleImport, openImportDialog } =
-    useImportExport(activeCollection);
+    useImportExport(activeCollection, items);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -56,40 +61,56 @@ function App() {
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = event;
-    if (!over || !activeCollection) return;
+    if (!over || !activeCollection || !activeCollectionId) return;
 
     const activeItemId = Number(active.id);
     const overId = String(over.id);
+    const activeItem = items.find((i) => i.id === activeItemId);
+    if (!activeItem) return;
 
-    // Check if dropping on a list container (droppable)
+    // Dropping on a list container (droppable)
     const isOverListContainer = activeCollection.lists.some(
       (l) => l.id === overId,
     );
 
     if (isOverListContainer) {
-      const activeItem = list.find((i) => i.id === activeItemId);
-      if (activeItem && activeItem.listId !== overId) {
-        moveItemToList(activeItemId, overId);
+      if (activeItem.listId !== overId) {
+        const targetItems = items.filter((i) => i.listId === overId);
+        moveItem.mutate({
+          collectionId: activeCollectionId,
+          itemId: activeItemId,
+          listId: overId,
+          order: targetItems.length + 1,
+        });
       }
     } else {
-      // Dropping on another item
       const overItemId = Number(overId);
-      const activeItem = list.find((i) => i.id === activeItemId);
-      const overItem = list.find((i) => i.id === overItemId);
+      const overItem = items.find((i) => i.id === overItemId);
+      if (!overItem || activeItem.id === overItem.id) return;
 
-      if (activeItem && overItem) {
-        if (activeItem.listId === overItem.listId) {
-          reorderItemsInList(activeItemId, overItemId);
-        } else {
-          moveItemToList(activeItemId, overItem.listId, overItem.order - 1);
-        }
+      if (activeItem.listId === overItem.listId) {
+        // Reorder within same list
+        const listItems = items
+          .filter((i) => i.listId === activeItem.listId)
+          .sort((a, b) => a.order - b.order);
+        const toIdx = listItems.findIndex((i) => i.id === overItemId);
+        moveItem.mutate({
+          collectionId: activeCollectionId,
+          itemId: activeItemId,
+          listId: activeItem.listId,
+          order: toIdx + 1,
+        });
+      } else {
+        // Move to different list, place before the over item
+        moveItem.mutate({
+          collectionId: activeCollectionId,
+          itemId: activeItemId,
+          listId: overItem.listId,
+          order: overItem.order,
+        });
       }
     }
   };
-
-  const collectionItems = activeCollectionId
-    ? list.filter((i) => i.collectionId === activeCollectionId)
-    : [];
 
   const colSpan = activeCollection
     ? Math.floor(24 / activeCollection.lists.length)
@@ -125,7 +146,9 @@ function App() {
                   seedList(
                     activeCollectionId,
                     activeCollection?.defaultListId ?? "",
-                  )
+                  ).then(() => {
+                    void qc.invalidateQueries({ queryKey: itemsKey(activeCollectionId) });
+                  })
                 }
               >
                 Seed 10 Random Items
@@ -141,13 +164,17 @@ function App() {
         </Col>
         <Col>
           <Space>
-            <Select
-              placeholder="Select a collection"
-              value={activeCollectionId ?? undefined}
-              onChange={selectCollection}
-              style={{ minWidth: 220 }}
-              options={collections.map((c) => ({ value: c.id, label: c.name }))}
-            />
+            {collectionsLoading ? (
+              <Spin size="small" />
+            ) : (
+              <Select
+                placeholder="Select a collection"
+                value={activeCollectionId ?? undefined}
+                onChange={selectCollection}
+                style={{ minWidth: 220 }}
+                options={collections.map((c) => ({ value: c.id, label: c.name }))}
+              />
+            )}
             {activeCollectionId && (
               <Button
                 icon={<SettingOutlined />}
@@ -172,6 +199,7 @@ function App() {
           <Row>
             {sortedLists.map((listConfig, idx) => {
               const ceiling =
+                listConfig.startingRating !== null &&
                 listConfig.startingRating !== undefined
                   ? idx === 0
                     ? 10
@@ -180,14 +208,19 @@ function App() {
               return (
                 <Col span={colSpan} key={listConfig.id}>
                   <DraggableList
-                    items={collectionItems}
+                    items={items}
                     collectionId={activeCollectionId}
                     listId={listConfig.id}
                     title={listConfig.name}
                     droppableId={listConfig.id}
-                    onDelete={deleteItem}
-                    backgroundColor={listConfig.backgroundColor}
-                    startingRating={listConfig.startingRating}
+                    onDelete={(id) =>
+                      deleteItem.mutate({
+                        collectionId: activeCollectionId,
+                        itemId: id,
+                      })
+                    }
+                    backgroundColor={listConfig.backgroundColor ?? undefined}
+                    startingRating={listConfig.startingRating ?? undefined}
                     ratingCeiling={ceiling}
                   />
                 </Col>
@@ -207,7 +240,7 @@ function App() {
               boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
             }}
           >
-            {list.find((i) => i.id === activeId)?.name ?? ""}
+            {items.find((i) => i.id === activeId)?.name ?? ""}
           </Card>
         ) : null}
       </DragOverlay>
@@ -216,7 +249,7 @@ function App() {
         open={rankingsOpen}
         onClose={() => setRankingsOpen(false)}
         collection={activeCollection}
-        items={collectionItems}
+        items={items}
       />
 
       {/* Add Item Drawer */}

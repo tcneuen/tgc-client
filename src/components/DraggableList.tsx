@@ -9,16 +9,16 @@ import {
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { ListItem } from "../store/useBearStore";
+import type { ApiItem } from "../types/api";
 import EditItemDrawer from "./EditItemDrawer";
 import RateItemModal from "./RateItemModal";
 
 interface SortableItemProps {
-  item: ListItem;
+  item: ApiItem;
   index: number;
   onDelete: (id: number) => void;
-  onEdit: (item: ListItem) => void;
-  onRate: (item: ListItem) => void;
+  onEdit: (item: ApiItem) => void;
+  onRate: (item: ApiItem) => void;
   rating?: number;
 }
 
@@ -102,7 +102,7 @@ function SortableItem({ item, index, onDelete, onEdit, onRate, rating }: Sortabl
 }
 
 interface DraggableListProps {
-  items: ListItem[];
+  items: ApiItem[];
   collectionId: string;
   listId: string;
   title: string;
@@ -124,8 +124,8 @@ export default function DraggableList({
   startingRating,
   ratingCeiling,
 }: DraggableListProps) {
-  const [editingItem, setEditingItem] = useState<ListItem | null>(null);
-  const [ratingItem, setRatingItem] = useState<ListItem | null>(null);
+  const [editingItem, setEditingItem] = useState<ApiItem | null>(null);
+  const [ratingItem, setRatingItem] = useState<ApiItem | null>(null);
   const { token } = theme.useToken();
   const scrollRef = useRef<HTMLDivElement>(null);
 

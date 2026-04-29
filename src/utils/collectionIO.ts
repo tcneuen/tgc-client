@@ -1,7 +1,5 @@
 import { message } from "antd";
-import type { Collection, ListConfig } from "../store/useCollectionStore";
-import type { ListItem } from "../store/useBearStore";
-import useBearStore from "../store/useBearStore";
+import type { ApiCollection, ApiItem, ApiList } from "../types/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,20 +10,20 @@ interface ExportedItem {
   order: number;
 }
 
-interface ExportedList extends ListConfig {
+interface ExportedList extends ApiList {
   items: ExportedItem[];
 }
 
 export interface CollectionExport {
-  collection: Pick<Collection, "id" | "name" | "defaultListId">;
+  collection: Pick<ApiCollection, "id" | "name" | "defaultListId">;
   lists: ExportedList[];
 }
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export function exportCollection(
-  collection: Collection,
-  allItems: ListItem[],
+  collection: ApiCollection,
+  allItems: ApiItem[],
 ): void {
   const collectionItems = allItems.filter(
     (i) => i.collectionId === collection.id,
@@ -39,7 +37,6 @@ export function exportCollection(
     },
     lists: collection.lists.map((l) => ({
       ...l,
-      protected: l.protected ?? false,
       items: collectionItems
         .filter((i) => i.listId === l.id)
         .sort((a, b) => a.order - b.order)
@@ -65,9 +62,15 @@ export function exportCollection(
 
 // ─── Import ───────────────────────────────────────────────────────────────────
 
+export interface ParsedImport {
+  name: string;
+  lists: { name: string; protected: boolean; backgroundColor?: string; startingRating?: number }[];
+  items: { name: string; description: string; listIndex: number; order: number }[];
+}
+
 export function parseCollectionFile(
   raw: string,
-  onSuccess: (collection: Collection, items: Omit<ListItem, never>[]) => void,
+  onSuccess: (parsed: ParsedImport) => void,
 ): void {
   try {
     const data: CollectionExport = JSON.parse(raw);
@@ -77,51 +80,26 @@ export function parseCollectionFile(
       return;
     }
 
-    const idMap: Record<string, string> = {};
-    const newCollectionId = crypto.randomUUID();
-    idMap[data.collection.id] = newCollectionId;
-
-    const newLists: ListConfig[] = data.lists.map((l) => {
-      const newListId = crypto.randomUUID();
-      idMap[l.id] = newListId;
-      return {
-        id: newListId,
-        name: l.name,
-        protected: l.protected ?? false,
-        backgroundColor: l.backgroundColor,
-        startingRating: l.startingRating,
-      };
-    });
-
-    const newDefaultListId =
-      idMap[data.collection.defaultListId] ?? newLists[0]?.id ?? "";
-
-    const newCollection: Collection = {
-      id: newCollectionId,
+    const parsed: ParsedImport = {
       name: data.collection.name,
-      lists: newLists,
-      defaultListId: newDefaultListId,
+      lists: data.lists.map((l) => ({
+        name: l.name,
+        protected: l.protected,
+        backgroundColor: l.backgroundColor ?? undefined,
+        startingRating: l.startingRating ?? undefined,
+      })),
+      items: data.lists.flatMap((l, listIndex) =>
+        (l.items ?? []).map((i) => ({
+          name: i.name,
+          description: i.description,
+          listIndex,
+          order: i.order,
+        })),
+      ),
     };
 
-    let globalMaxId = 0;
-    useBearStore.getState().list.forEach((i) => {
-      if (i.id > globalMaxId) globalMaxId = i.id;
-    });
-
-    const newItems: ListItem[] = data.lists.flatMap((l) =>
-      l.items.map((item) => ({
-        id: ++globalMaxId,
-        name: item.name,
-        description: item.description,
-        collectionId: newCollectionId,
-        listId: idMap[l.id],
-        order: item.order,
-      })),
-    );
-
-    onSuccess(newCollection, newItems);
-    message.success(`Imported "${data.collection.name}"`);
+    onSuccess(parsed);
   } catch {
-    message.error("Failed to parse file");
+    message.error("Failed to parse collection file");
   }
 }

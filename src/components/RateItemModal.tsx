@@ -8,12 +8,12 @@ import {
   Card,
   Divider,
 } from "antd";
-import type { ListItem } from "../store/useBearStore";
-import useBearStore from "../store/useBearStore";
-import useCollectionStore from "../store/useCollectionStore";
+import type { ApiItem } from "../types/api";
+import { useItems, useMoveItem } from "../hooks/useItems";
+import { useCollections } from "../hooks/useCollections";
 
 interface Props {
-  item: ListItem | null;
+  item: ApiItem | null;
   open: boolean;
   onClose: () => void;
 }
@@ -21,9 +21,9 @@ interface Props {
 type Step = "select-list" | "compare";
 
 export default function RateItemModal({ item, open, onClose }: Props) {
-  const allItems = useBearStore((s) => s.list);
-  const placeItemAtIndex = useBearStore((s) => s.placeItemAtIndex);
-  const collections = useCollectionStore((s) => s.collections);
+  const { data: allItems = [] } = useItems(item?.collectionId ?? null);
+  const { data: collections = [] } = useCollections();
+  const moveItem = useMoveItem();
 
   const [selectedListId, setSelectedListId] = useState<string>("");
   const [step, setStep] = useState<Step>("select-list");
@@ -50,8 +50,10 @@ export default function RateItemModal({ item, open, onClose }: Props) {
     if (!selectedListId) return;
     const listItems = getListItems(selectedListId);
     if (listItems.length === 0) {
-      placeItemAtIndex(item.id, selectedListId, 0);
-      handleClose();
+      moveItem.mutate(
+        { collectionId: item.collectionId, itemId: item.id, listId: selectedListId, order: 1 },
+        { onSuccess: handleClose },
+      );
       return;
     }
     setLow(0);
@@ -64,8 +66,10 @@ export default function RateItemModal({ item, open, onClose }: Props) {
   const pivotItem = listItems[mid];
 
   const placeAt = (index: number) => {
-    placeItemAtIndex(item.id, selectedListId, index);
-    handleClose();
+    moveItem.mutate(
+      { collectionId: item.collectionId, itemId: item.id, listId: selectedListId, order: index + 1 },
+      { onSuccess: handleClose },
+    );
   };
 
   const handleBetter = () => {
