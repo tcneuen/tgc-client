@@ -37,6 +37,7 @@ interface ListStuff {
     toListId: string,
   ) => void;
   deleteItemsByCollection: (collectionId: string) => void;
+  importItems: (items: Omit<ListItem, never>[]) => void;
 }
 
 const useBearStore = create<ListStuff>((set) => ({
@@ -239,6 +240,10 @@ const useBearStore = create<ListStuff>((set) => ({
   deleteItemsByCollection: (collectionId) =>
     set((state) => ({
       list: state.list.filter((i) => i.collectionId !== collectionId),
+    })),
+  importItems: (items) =>
+    set((state) => ({
+      list: [...state.list, ...items],
     })),
 }));
 

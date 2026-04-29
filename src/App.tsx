@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Button, Card, Col, Empty, Row, Select, Space } from "antd";
-import { ExportOutlined, SettingOutlined } from "@ant-design/icons";
+import { useRef, useState } from "react";
+import { Button, Card, Col, Empty, Row, Select, Space, message } from "antd";
+import { ExportOutlined, ImportOutlined, SettingOutlined } from "@ant-design/icons";
 import {
   DndContext,
   closestCenter,
@@ -25,10 +25,11 @@ function App() {
   const [collectionDrawerOpen, setCollectionDrawerOpen] = useState(false);
   const [manageDrawerOpen, setManageDrawerOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
-  const { list, deleteItem, reorderItemsInList, moveItemToList } =
+  const { list, deleteItem, reorderItemsInList, moveItemToList, importItems } =
     useBearStore();
-  const { collections, activeCollectionId, selectCollection } =
+  const { collections, activeCollectionId, selectCollection, importCollection } =
     useCollectionStore();
 
   const activeCollection =
@@ -82,6 +83,73 @@ function App() {
   const collectionItems = activeCollectionId
     ? list.filter((i) => i.collectionId === activeCollectionId)
     : [];
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        if (!data.collection || !Array.isArray(data.lists)) {
+          message.error("Invalid collection file");
+          return;
+        }
+        // Remap IDs to avoid collisions
+        const idMap: Record<string, string> = {};
+        const newCollectionId = crypto.randomUUID();
+        idMap[data.collection.id] = newCollectionId;
+
+        const newLists = data.lists.map((l: { id: string; name: string; protected?: boolean; backgroundColor?: string; startingRating?: number; items: { id: number; name: string; description: string; order: number }[] }) => {
+          const newListId = crypto.randomUUID();
+          idMap[l.id] = newListId;
+          return {
+            id: newListId,
+            name: l.name,
+            protected: l.protected ?? false,
+            backgroundColor: l.backgroundColor,
+            startingRating: l.startingRating,
+          };
+        });
+
+        const newDefaultListId = idMap[data.collection.defaultListId] ?? newLists[0]?.id ?? "";
+
+        importCollection({
+          id: newCollectionId,
+          name: data.collection.name,
+          lists: newLists,
+          defaultListId: newDefaultListId,
+        });
+
+        let globalMaxId = 0;
+        // Find current max id across all items in store to avoid id collisions
+        useBearStore.getState().list.forEach((i) => {
+          if (i.id > globalMaxId) globalMaxId = i.id;
+        });
+
+        const newItems = data.lists.flatMap(
+          (l: { id: string; items: { id: number; name: string; description: string; order: number }[] }) =>
+            l.items.map((item: { id: number; name: string; description: string; order: number }) => ({
+              id: ++globalMaxId,
+              name: item.name,
+              description: item.description,
+              collectionId: newCollectionId,
+              listId: idMap[l.id],
+              order: item.order,
+            })),
+        );
+
+        importItems(newItems);
+        message.success(`Imported "${data.collection.name}"`);
+      } catch {
+        message.error("Failed to parse file");
+      } finally {
+        // Reset input so the same file can be re-imported
+        if (importInputRef.current) importInputRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleExport = () => {
     if (!activeCollection) return;
@@ -180,6 +248,21 @@ function App() {
                 Export
               </Button>
             )}
+            <>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".json"
+                style={{ display: "none" }}
+                onChange={handleImport}
+              />
+              <Button
+                icon={<ImportOutlined />}
+                onClick={() => importInputRef.current?.click()}
+              >
+                Import
+              </Button>
+            </>
             <Button onClick={() => setCollectionDrawerOpen(true)}>
               New Collection
             </Button>

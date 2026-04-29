@@ -34,6 +34,7 @@ interface CollectionState {
   updateListColor: (collectionId: string, listId: string, color: string) => void;
   updateListRating: (collectionId: string, listId: string, rating: number | undefined) => void;
   removeList: (collectionId: string, listId: string) => void;
+  importCollection: (collection: Collection) => void;
 }
 
 const useCollectionStore = create<CollectionState>((set) => ({
@@ -129,6 +130,11 @@ const useCollectionStore = create<CollectionState>((set) => ({
               : c.defaultListId,
         };
       }),
+    })),
+  importCollection: (collection) =>
+    set((state) => ({
+      collections: [...state.collections, collection],
+      activeCollectionId: collection.id,
     })),
 }));
 
