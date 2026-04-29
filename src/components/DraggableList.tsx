@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Button, Card, Popconfirm, theme } from "antd";
-import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, StarOutlined } from "@ant-design/icons";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -11,16 +11,18 @@ import { CSS } from "@dnd-kit/utilities";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ListItem } from "../store/useBearStore";
 import EditItemDrawer from "./EditItemDrawer";
+import RateItemModal from "./RateItemModal";
 
 interface SortableItemProps {
   item: ListItem;
   index: number;
   onDelete: (id: number) => void;
   onEdit: (item: ListItem) => void;
+  onRate: (item: ListItem) => void;
   rating?: number;
 }
 
-function SortableItem({ item, index, onDelete, onEdit, rating }: SortableItemProps) {
+function SortableItem({ item, index, onDelete, onEdit, onRate, rating }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -63,6 +65,12 @@ function SortableItem({ item, index, onDelete, onEdit, rating }: SortableItemPro
         }
         extra={
           <div style={{ display: "flex", gap: "4px" }}>
+            <Button
+              type="text"
+              icon={<StarOutlined />}
+              size="small"
+              onClick={(e) => { e.stopPropagation(); onRate(item); }}
+            />
             <Button
               type="text"
               icon={<EditOutlined />}
@@ -117,6 +125,7 @@ export default function DraggableList({
   ratingCeiling,
 }: DraggableListProps) {
   const [editingItem, setEditingItem] = useState<ListItem | null>(null);
+  const [ratingItem, setRatingItem] = useState<ListItem | null>(null);
   const { token } = theme.useToken();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -207,6 +216,7 @@ export default function DraggableList({
                     index={virtualRow.index}
                     onDelete={onDelete}
                     onEdit={setEditingItem}
+                    onRate={setRatingItem}
                     rating={
                       startingRating !== undefined && ratingCeiling !== undefined
                         ? ratingCeiling -
@@ -240,6 +250,11 @@ export default function DraggableList({
         item={editingItem}
         open={editingItem !== null}
         onClose={() => setEditingItem(null)}
+      />
+      <RateItemModal
+        item={ratingItem}
+        open={ratingItem !== null}
+        onClose={() => setRatingItem(null)}
       />
     </div>
   );

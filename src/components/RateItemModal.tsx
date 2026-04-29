@@ -1,0 +1,168 @@
+import { useState } from "react";
+import {
+  Modal,
+  Select,
+  Typography,
+  Button,
+  Space,
+  Card,
+  Divider,
+} from "antd";
+import type { ListItem } from "../store/useBearStore";
+import useBearStore from "../store/useBearStore";
+import useCollectionStore from "../store/useCollectionStore";
+
+interface Props {
+  item: ListItem | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+type Step = "select-list" | "compare";
+
+export default function RateItemModal({ item, open, onClose }: Props) {
+  const allItems = useBearStore((s) => s.list);
+  const placeItemAtIndex = useBearStore((s) => s.placeItemAtIndex);
+  const collections = useCollectionStore((s) => s.collections);
+
+  const [selectedListId, setSelectedListId] = useState<string>("");
+  const [step, setStep] = useState<Step>("select-list");
+  const [low, setLow] = useState(0);
+  const [high, setHigh] = useState(0);
+
+  if (!item) return null;
+
+  const collection = collections.find((c) => c.id === item.collectionId);
+  if (!collection) return null;
+
+  // Items in a given list excluding the item being rated, sorted by rank
+  const getListItems = (listId: string) =>
+    allItems
+      .filter(
+        (i) =>
+          i.collectionId === collection.id &&
+          i.listId === listId &&
+          i.id !== item.id,
+      )
+      .sort((a, b) => a.order - b.order);
+
+  const handleSelectList = () => {
+    if (!selectedListId) return;
+    const listItems = getListItems(selectedListId);
+    if (listItems.length === 0) {
+      placeItemAtIndex(item.id, selectedListId, 0);
+      handleClose();
+      return;
+    }
+    setLow(0);
+    setHigh(listItems.length - 1);
+    setStep("compare");
+  };
+
+  const listItems = step === "compare" ? getListItems(selectedListId) : [];
+  const mid = Math.floor((low + high) / 2);
+  const pivotItem = listItems[mid];
+
+  const placeAt = (index: number) => {
+    placeItemAtIndex(item.id, selectedListId, index);
+    handleClose();
+  };
+
+  const handleBetter = () => {
+    const newHigh = mid - 1;
+    if (low > newHigh) {
+      placeAt(low);
+    } else {
+      setHigh(newHigh);
+    }
+  };
+
+  const handleWorse = () => {
+    const newLow = mid + 1;
+    if (newLow > high) {
+      placeAt(newLow);
+    } else {
+      setLow(newLow);
+    }
+  };
+
+  const handleClose = () => {
+    setStep("select-list");
+    setSelectedListId("");
+    setLow(0);
+    setHigh(0);
+    onClose();
+  };
+
+  return (
+    <Modal
+      open={open}
+      onCancel={handleClose}
+      title={`Rate: ${item.name}`}
+      footer={null}
+      width={480}
+    >
+      {step === "select-list" && (
+        <Space direction="vertical" style={{ width: "100%" }} size="middle">
+          <Typography.Text>
+            Which list should <strong>{item.name}</strong> be ranked in?
+          </Typography.Text>
+          <Select
+            style={{ width: "100%" }}
+            placeholder="Select a list"
+            value={selectedListId || undefined}
+            onChange={setSelectedListId}
+            options={collection.lists.map((l) => ({
+              value: l.id,
+              label: l.name,
+            }))}
+          />
+          <Button
+            type="primary"
+            onClick={handleSelectList}
+            disabled={!selectedListId}
+            block
+          >
+            Start Rating
+          </Button>
+        </Space>
+      )}
+
+      {step === "compare" && pivotItem && (
+        <Space direction="vertical" style={{ width: "100%" }} size="middle">
+          <Typography.Text>
+            Is <strong>{item.name}</strong> better or worse than:
+          </Typography.Text>
+          <Card size="small" style={{ background: "#fafafa" }}>
+            <Typography.Text strong>{pivotItem.name}</Typography.Text>
+            {pivotItem.description && (
+              <>
+                <Divider style={{ margin: "6px 0" }} />
+                <Typography.Text
+                  type="secondary"
+                  style={{ fontSize: 12 }}
+                >
+                  {pivotItem.description}
+                </Typography.Text>
+              </>
+            )}
+          </Card>
+          <Space style={{ width: "100%", justifyContent: "center" }}>
+            <Button type="primary" size="large" onClick={handleBetter}>
+              Better ↑
+            </Button>
+            <Button danger size="large" onClick={handleWorse}>
+              Worse ↓
+            </Button>
+          </Space>
+          <Typography.Text
+            type="secondary"
+            style={{ fontSize: 11, textAlign: "center", display: "block" }}
+          >
+            Comparing against rank #{mid + 1} of {listItems.length}
+          </Typography.Text>
+        </Space>
+      )}
+    </Modal>
+  );
+}

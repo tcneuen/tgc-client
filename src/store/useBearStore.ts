@@ -26,6 +26,11 @@ interface ListStuff {
     targetListId: string,
     targetIndex?: number,
   ) => void;
+  placeItemAtIndex: (
+    itemId: number,
+    targetListId: string,
+    targetIndex: number,
+  ) => void;
   moveAllItemsFromList: (
     collectionId: string,
     fromListId: string,
@@ -163,6 +168,57 @@ const useBearStore = create<ListStuff>((set) => ({
       });
 
       return { list: updatedList };
+    }),
+  placeItemAtIndex: (itemId, targetListId, targetIndex) =>
+    set((state) => {
+      const item = state.list.find((i) => i.id === itemId);
+      if (!item) return state;
+
+      if (item.listId === targetListId) {
+        // Reorder within the same list
+        const listItems = state.list
+          .filter(
+            (i) =>
+              i.listId === item.listId && i.collectionId === item.collectionId,
+          )
+          .sort((a, b) => a.order - b.order);
+        const currentIndex = listItems.findIndex((i) => i.id === itemId);
+        const reordered = [...listItems];
+        const [removed] = reordered.splice(currentIndex, 1);
+        reordered.splice(targetIndex, 0, removed);
+        return {
+          list: state.list.map((i) => {
+            const newIdx = reordered.findIndex((r) => r.id === i.id);
+            if (newIdx !== -1) return { ...i, order: newIdx + 1 };
+            return i;
+          }),
+        };
+      }
+
+      // Move to a different list
+      const newOrder = targetIndex + 1;
+      return {
+        list: state.list.map((listItem) => {
+          if (listItem.id === itemId) {
+            return { ...listItem, listId: targetListId, order: newOrder };
+          }
+          if (
+            listItem.listId === targetListId &&
+            listItem.collectionId === item.collectionId &&
+            listItem.order >= newOrder
+          ) {
+            return { ...listItem, order: listItem.order + 1 };
+          }
+          if (
+            listItem.listId === item.listId &&
+            listItem.collectionId === item.collectionId &&
+            listItem.order > item.order
+          ) {
+            return { ...listItem, order: listItem.order - 1 };
+          }
+          return listItem;
+        }),
+      };
     }),
   moveAllItemsFromList: (collectionId, fromListId, toListId) =>
     set((state) => {
