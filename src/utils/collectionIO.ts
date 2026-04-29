@@ -7,7 +7,6 @@ interface ExportedItem {
   id: number;
   name: string;
   description: string;
-  order: number;
 }
 
 interface ExportedList extends ApiList {
@@ -25,28 +24,35 @@ export function exportCollection(
   collection: ApiCollection,
   allItems: ApiItem[],
 ): void {
-  const collectionItems = allItems.filter(
-    (i) => i.collectionId === collection.id,
-  );
-
   const data: CollectionExport = {
     collection: {
       id: collection.id,
       name: collection.name,
       defaultListId: collection.defaultListId,
     },
-    lists: collection.lists.map((l) => ({
-      ...l,
-      items: collectionItems
-        .filter((i) => i.listId === l.id)
-        .sort((a, b) => a.order - b.order)
-        .map((i) => ({
+    lists: collection.lists.map((l) => {
+      // Walk linked list in order for export
+      const listItems = allItems.filter(
+        (i) => i.collectionId === collection.id && i.listId === l.id,
+      );
+      const byId = new Map(listItems.map((i) => [i.id, i]));
+      let cur = listItems.find((i) => i.prevId === null);
+      const ordered: ApiItem[] = [];
+      const seen = new Set<number>();
+      while (cur && !seen.has(cur.id)) {
+        ordered.push(cur);
+        seen.add(cur.id);
+        cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
+      }
+      return {
+        ...l,
+        items: ordered.map((i) => ({
           id: i.id,
           name: i.name,
           description: i.description,
-          order: i.order,
         })),
-    })),
+      };
+    }),
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -65,7 +71,7 @@ export function exportCollection(
 export interface ParsedImport {
   name: string;
   lists: { name: string; protected: boolean; backgroundColor?: string; startingRating?: number }[];
-  items: { name: string; description: string; listIndex: number; order: number }[];
+  items: { name: string; description: string; listIndex: number }[];
 }
 
 export function parseCollectionFile(
@@ -93,7 +99,6 @@ export function parseCollectionFile(
           name: i.name,
           description: i.description,
           listIndex,
-          order: i.order,
         })),
       ),
     };

@@ -68,6 +68,21 @@ function App() {
     const activeItem = items.find((i) => i.id === activeItemId);
     if (!activeItem) return;
 
+    // Helper: get items in a list in linked-list order
+    const listItemsOrdered = (listId: string) => {
+      const listItems = items.filter((i) => i.listId === listId);
+      const byId = new Map(listItems.map((i) => [i.id, i]));
+      let cur = listItems.find((i) => i.prevId === null);
+      const result: typeof listItems = [];
+      const seen = new Set<number>();
+      while (cur && !seen.has(cur.id)) {
+        result.push(cur);
+        seen.add(cur.id);
+        cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
+      }
+      return result;
+    };
+
     // Dropping on a list container (droppable)
     const isOverListContainer = activeCollection.lists.some(
       (l) => l.id === overId,
@@ -75,12 +90,19 @@ function App() {
 
     if (isOverListContainer) {
       if (activeItem.listId !== overId) {
-        const targetItems = items.filter((i) => i.listId === overId);
+        // Move to tail of the target list
+        const targetItems = listItemsOrdered(overId).filter(
+          (i) => i.id !== activeItemId,
+        );
+        const afterId =
+          targetItems.length > 0
+            ? targetItems[targetItems.length - 1].id
+            : null;
         moveItem.mutate({
           collectionId: activeCollectionId,
           itemId: activeItemId,
           listId: overId,
-          order: targetItems.length + 1,
+          afterId,
         });
       }
     } else {
@@ -89,24 +111,31 @@ function App() {
       if (!overItem || activeItem.id === overItem.id) return;
 
       if (activeItem.listId === overItem.listId) {
-        // Reorder within same list
-        const listItems = items
-          .filter((i) => i.listId === activeItem.listId)
-          .sort((a, b) => a.order - b.order);
+        // Reorder within same list — place immediately before overItem
+        const listItems = listItemsOrdered(activeItem.listId).filter(
+          (i) => i.id !== activeItemId,
+        );
         const toIdx = listItems.findIndex((i) => i.id === overItemId);
+        // Place before overItem means afterId = item before it (or null if head)
+        const afterId = toIdx > 0 ? listItems[toIdx - 1].id : null;
         moveItem.mutate({
           collectionId: activeCollectionId,
           itemId: activeItemId,
           listId: activeItem.listId,
-          order: toIdx + 1,
+          afterId,
         });
       } else {
         // Move to different list, place before the over item
+        const listItems = listItemsOrdered(overItem.listId).filter(
+          (i) => i.id !== activeItemId,
+        );
+        const toIdx = listItems.findIndex((i) => i.id === overItemId);
+        const afterId = toIdx > 0 ? listItems[toIdx - 1].id : null;
         moveItem.mutate({
           collectionId: activeCollectionId,
           itemId: activeItemId,
           listId: overItem.listId,
-          order: overItem.order,
+          afterId,
         });
       }
     }
@@ -197,14 +226,7 @@ function App() {
       ) : (
         <>
           <Row>
-            {sortedLists.map((listConfig, idx) => {
-              const ceiling =
-                listConfig.startingRating !== null &&
-                listConfig.startingRating !== undefined
-                  ? idx === 0
-                    ? 10
-                    : (sortedLists[idx - 1].startingRating ?? 10)
-                  : undefined;
+            {sortedLists.map((listConfig) => {
               return (
                 <Col span={colSpan} key={listConfig.id}>
                   <DraggableList
@@ -221,7 +243,6 @@ function App() {
                     }
                     backgroundColor={listConfig.backgroundColor ?? undefined}
                     startingRating={listConfig.startingRating ?? undefined}
-                    ratingCeiling={ceiling}
                   />
                 </Col>
               );

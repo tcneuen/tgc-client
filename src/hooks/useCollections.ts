@@ -169,16 +169,16 @@ export function useDeleteList() {
       moveToListId?: string;
       items?: ApiItem[];
     }): Promise<void> => {
-      // Move items to another list first if requested
-      if (moveToListId && items) {
-        const toMove = items.filter((i) => i.listId === listId);
-        for (const item of toMove) {
-          await apiFetch(`/collections/${collectionId}/items/${item.id}/move`, {
-            method: "PATCH",
-            body: JSON.stringify({ listId: moveToListId, order: item.order }),
-          });
+        // Move items to another list first if requested (append to tail of target)
+        if (moveToListId && items) {
+          const toMove = items.filter((i) => i.listId === listId);
+          for (const item of toMove) {
+            await apiFetch(`/collections/${collectionId}/items/${item.id}/move`, {
+              method: "PATCH",
+              body: JSON.stringify({ listId: moveToListId, afterId: null }),
+            });
+          }
         }
-      }
       const res = await apiFetch(`/collections/${collectionId}/lists/${listId}`, {
         method: "DELETE",
       });

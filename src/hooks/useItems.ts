@@ -102,53 +102,77 @@ export function useMoveItem() {
       collectionId,
       itemId,
       listId,
-      order,
+      afterId,
     }: {
       collectionId: string;
       itemId: number;
       listId: string;
-      order: number;
+      /** ID of the item to place this one after, or null to move to head */
+      afterId: number | null;
     }): Promise<ApiItem> => {
       const res = await apiFetch(
         `/collections/${collectionId}/items/${itemId}/move`,
         {
           method: "PATCH",
-          body: JSON.stringify({ listId, order }),
+          body: JSON.stringify({ listId, afterId }),
         },
       );
       if (!res.ok) throw new Error("Failed to move item");
       return res.json();
     },
-    onMutate: async ({ collectionId, itemId, listId, order }) => {
+    onMutate: async ({ collectionId, itemId, listId, afterId }) => {
       await qc.cancelQueries({ queryKey: itemsKey(collectionId) });
       const previous = qc.getQueryData<ApiItem[]>(itemsKey(collectionId));
       if (previous) {
+        // Rebuild the optimistic list by splicing `itemId` out of its current
+        // position and inserting it after `afterId` in `listId`.
         const item = previous.find((i) => i.id === itemId);
         if (item) {
-          const oldListId = item.listId;
-          const oldOrder = item.order;
-          const movingDown =
-            oldListId === listId && order > oldOrder;
-          const updated = previous.map((i) => {
-            if (i.id === itemId) return { ...i, listId, order };
-            if (i.listId === listId && i.id !== itemId) {
-              if (movingDown) {
-                if (i.order > oldOrder && i.order <= order)
-                  return { ...i, order: i.order - 1 };
-              } else {
-                if (i.order >= order) return { ...i, order: i.order + 1 };
-              }
+          // Walk each list in linked-list order to produce an ordered array,
+          // then reinsert the moving item at the desired position.
+          const sortLinked = (listItems: ApiItem[]) => {
+            const byId = new Map(listItems.map((i) => [i.id, i]));
+            let cur: ApiItem | undefined = listItems.find((i) => i.prevId === null);
+            const result: ApiItem[] = [];
+            const seen = new Set<number>();
+            while (cur && !seen.has(cur.id)) {
+              result.push(cur);
+              seen.add(cur.id);
+              cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
             }
-            if (
-              oldListId !== listId &&
-              i.listId === oldListId &&
-              i.order > oldOrder
-            ) {
-              return { ...i, order: i.order - 1 };
-            }
+            return result;
+          };
+
+          // Get the ordered array for the target list (excluding the moving item)
+          const targetOrdered = sortLinked(
+            previous.filter((i) => i.listId === listId && i.id !== itemId),
+          );
+          const afterIdx = afterId != null
+            ? targetOrdered.findIndex((i) => i.id === afterId)
+            : -1;
+          // Insert after `afterIdx` (or at head if afterId is null / not found)
+          targetOrdered.splice(afterIdx + 1, 0, { ...item, listId });
+
+          // Rebuild prev/next for all items in target list
+          const withPointers = targetOrdered.map((i, idx) => ({
+            ...i,
+            prevId: idx === 0 ? null : targetOrdered[idx - 1].id,
+            nextId: idx === targetOrdered.length - 1 ? null : targetOrdered[idx + 1].id,
+          }));
+          const patchedIds = new Set(withPointers.map((i) => i.id));
+
+          // Items in other lists: remove the moved item, fix pointers around the gap
+          const others = previous.filter(
+            (i) => i.listId !== listId || (i.listId === listId && !patchedIds.has(i.id)),
+          );
+          // Repair pointers in old list around the removed item
+          const repairedOthers = others.map((i) => {
+            if (i.nextId === itemId) return { ...i, nextId: item.nextId };
+            if (i.prevId === itemId) return { ...i, prevId: item.prevId };
             return i;
-          });
-          qc.setQueryData(itemsKey(collectionId), updated);
+          }).filter((i) => i.id !== itemId);
+
+          qc.setQueryData(itemsKey(collectionId), [...repairedOthers, ...withPointers]);
         }
       }
       return { previous };

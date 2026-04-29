@@ -35,23 +35,34 @@ export default function RateItemModal({ item, open, onClose }: Props) {
   const collection = collections.find((c) => c.id === item.collectionId);
   if (!collection) return null;
 
-  // Items in a given list excluding the item being rated, sorted by rank
-  const getListItems = (listId: string) =>
-    allItems
-      .filter(
-        (i) =>
-          i.collectionId === collection.id &&
-          i.listId === listId &&
-          i.id !== item.id,
-      )
-      .sort((a, b) => a.order - b.order);
+  // Items in a given list excluding the item being rated, sorted by linked-list order
+  const getListItems = (listId: string) => {
+    const listItems = allItems.filter(
+      (i) =>
+        i.collectionId === collection.id &&
+        i.listId === listId &&
+        i.id !== item.id,
+    );
+    const byId = new Map(listItems.map((i) => [i.id, i]));
+    let cur: typeof listItems[0] | undefined = listItems.find(
+      (i) => i.prevId === null || !byId.has(i.prevId),
+    );
+    const result: typeof listItems = [];
+    const seen = new Set<number>();
+    while (cur && !seen.has(cur.id)) {
+      result.push(cur);
+      seen.add(cur.id);
+      cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
+    }
+    return result;
+  };
 
   const handleSelectList = () => {
     if (!selectedListId) return;
     const listItems = getListItems(selectedListId);
     if (listItems.length === 0) {
       moveItem.mutate(
-        { collectionId: item.collectionId, itemId: item.id, listId: selectedListId, order: 1 },
+        { collectionId: item.collectionId, itemId: item.id, listId: selectedListId, afterId: null },
         { onSuccess: handleClose },
       );
       return;
@@ -66,8 +77,10 @@ export default function RateItemModal({ item, open, onClose }: Props) {
   const pivotItem = listItems[mid];
 
   const placeAt = (index: number) => {
+    // afterId = the item at index-1 (null means insert at head)
+    const afterId = index > 0 ? listItems[index - 1].id : null;
     moveItem.mutate(
-      { collectionId: item.collectionId, itemId: item.id, listId: selectedListId, order: index + 1 },
+      { collectionId: item.collectionId, itemId: item.id, listId: selectedListId, afterId },
       { onSuccess: handleClose },
     );
   };

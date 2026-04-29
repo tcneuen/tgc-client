@@ -6,7 +6,7 @@ interface RankedRow {
   rank: number;
   name: string;
   listName: string;
-  rating: number;
+  rating: number | null;
 }
 
 interface RankingsModalProps {
@@ -31,34 +31,22 @@ export default function RankingsModal({
 
   const rows: RankedRow[] = [];
 
-  sortedLists.forEach((listConfig, idx) => {
-    if (listConfig.startingRating === null) return;
-
-    const ceiling =
-      idx === 0 ? 10 : (sortedLists[idx - 1].startingRating ?? 10);
-    const startingRating = listConfig.startingRating;
-
-    const listItems = items
-      .filter(
-        (i) => i.collectionId === collection.id && i.listId === listConfig.id,
-      )
-      .sort((a, b) => a.order - b.order);
-
-    listItems.forEach((item, i) => {
-      const rating =
-        ceiling -
-        ((ceiling - startingRating) / Math.max(listItems.length - 1, 1)) * i;
+  sortedLists.forEach((listConfig) => {
+    const listItems = items.filter(
+      (i) => i.collectionId === collection.id && i.listId === listConfig.id && i.rating !== null,
+    );
+    listItems.forEach((item) => {
       rows.push({
         key: item.id,
         rank: 0,
         name: item.name,
         listName: listConfig.name,
-        rating,
+        rating: item.rating,
       });
     });
   });
 
-  rows.sort((a, b) => b.rating - a.rating);
+  rows.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
   rows.forEach((r, i) => {
     r.rank = i + 1;
   });
@@ -72,7 +60,7 @@ export default function RankingsModal({
       dataIndex: "rating",
       key: "rating",
       width: 80,
-      render: (v: number) => v.toFixed(2),
+      render: (v: number | null) => (v != null ? v.toFixed(2) : "—"),
     },
   ];
 

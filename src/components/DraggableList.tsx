@@ -110,7 +110,6 @@ interface DraggableListProps {
   onDelete: (id: number) => void;
   backgroundColor?: string;
   startingRating?: number;
-  ratingCeiling?: number;
 }
 
 export default function DraggableList({
@@ -122,7 +121,6 @@ export default function DraggableList({
   onDelete,
   backgroundColor = "#ffffff",
   startingRating,
-  ratingCeiling,
 }: DraggableListProps) {
   const [editingItem, setEditingItem] = useState<ApiItem | null>(null);
   const [ratingItem, setRatingItem] = useState<ApiItem | null>(null);
@@ -131,9 +129,10 @@ export default function DraggableList({
 
   const { setNodeRef: setDroppableRef } = useDroppable({ id: droppableId });
 
-  const filteredItems = items
-    .filter((i) => i.collectionId === collectionId && i.listId === listId)
-    .sort((a, b) => a.order - b.order);
+  // Items arrive from the server already in linked-list order
+  const filteredItems = items.filter(
+    (i) => i.collectionId === collectionId && i.listId === listId,
+  );
 
   const virtualizer = useVirtualizer({
     count: filteredItems.length,
@@ -217,14 +216,7 @@ export default function DraggableList({
                     onDelete={onDelete}
                     onEdit={setEditingItem}
                     onRate={setRatingItem}
-                    rating={
-                      startingRating !== undefined && ratingCeiling !== undefined
-                        ? ratingCeiling -
-                          ((ratingCeiling - startingRating) /
-                            Math.max(filteredItems.length - 1, 1)) *
-                            virtualRow.index
-                        : undefined
-                    }
+                    rating={item.rating ?? undefined}
                   />
                 </div>
               );

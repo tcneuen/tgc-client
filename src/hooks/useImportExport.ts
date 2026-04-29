@@ -58,7 +58,7 @@ export function useImportExport(
             });
           }
 
-          // 4. Create items
+          // 4. Create items (server appends to tail by default with no afterId)
           for (const item of parsed.items) {
             await apiFetch(`/collections/${col.id}/items`, {
               method: "POST",
@@ -66,7 +66,6 @@ export function useImportExport(
                 name: item.name,
                 description: item.description,
                 listId: listIds[item.listIndex],
-                order: item.order,
               }),
             });
           }
