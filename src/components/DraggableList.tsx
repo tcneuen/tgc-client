@@ -210,8 +210,9 @@ export default function DraggableList({
                     rating={
                       startingRating !== undefined && ratingCeiling !== undefined
                         ? ratingCeiling -
-                          ((ratingCeiling - startingRating) / filteredItems.length) *
-                            (virtualRow.index + 1)
+                          ((ratingCeiling - startingRating) /
+                            Math.max(filteredItems.length - 1, 1)) *
+                            virtualRow.index
                         : undefined
                     }
                   />
