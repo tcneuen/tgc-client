@@ -93,6 +93,7 @@ function ListRow({
       return;
     }
     setRatingError("");
+    setRatingInput(parsed.toFixed(2));
     onRatingChange(list.id, parsed);
   };
 
@@ -236,6 +237,8 @@ export default function CollectionDrawer({
 
   // ── Shared ──
   const [newListName, setNewListName] = useState("");
+  const [newListRating, setNewListRating] = useState("");
+  const [newListRatingError, setNewListRatingError] = useState("");
   const [deleteListModal, setDeleteListModal] = useState<{
     listId: string;
     listName: string;
@@ -254,13 +257,46 @@ export default function CollectionDrawer({
   const handleAddList = () => {
     const trimmed = newListName.trim();
     if (!trimmed) return;
-    const newList: ListConfig = { id: crypto.randomUUID(), name: trimmed };
+
+    const parsedRating = parseFloat(newListRating);
+    if (newListRating.trim() === "") {
+      setNewListRatingError("Required");
+      return;
+    }
+    if (Number.isNaN(parsedRating)) {
+      setNewListRatingError("Must be a number");
+      return;
+    }
+    if (parsedRating < 0 || parsedRating > 9.5) {
+      setNewListRatingError("Must be 0–9.50");
+      return;
+    }
+    if (!/^\d+(\.\d{1,2})?$/.test(newListRating.trim())) {
+      setNewListRatingError("Max 2 decimals");
+      return;
+    }
+    const displayLists = isManage ? (collection?.lists ?? []) : draftLists;
+    const alreadyUsed = displayLists.some(
+      (l) => l.startingRating === parsedRating,
+    );
+    if (alreadyUsed) {
+      setNewListRatingError("Already used");
+      return;
+    }
+
+    const newList: ListConfig = {
+      id: crypto.randomUUID(),
+      name: trimmed,
+      startingRating: parsedRating,
+    };
     if (isManage && collection) {
       addListToCollection(collection.id, newList);
     } else {
       setDraftLists((prev) => [...prev, newList]);
     }
     setNewListName("");
+    setNewListRating("");
+    setNewListRatingError("");
   };
 
   const handleDraftColorChange = (id: string, color: string) =>
@@ -328,6 +364,8 @@ export default function CollectionDrawer({
     form.resetFields();
     setDraftLists([]);
     setNewListName("");
+    setNewListRating("");
+    setNewListRatingError("");
     onClose();
   };
 
@@ -508,17 +546,41 @@ export default function CollectionDrawer({
           })}
         </div>
 
-        <Space.Compact style={{ width: "100%", marginTop: "12px" }}>
-          <Input
-            placeholder="New list name"
-            value={newListName}
-            onChange={(e) => setNewListName(e.target.value)}
-            onPressEnter={handleAddList}
-          />
-          <Button icon={<PlusOutlined />} onClick={handleAddList}>
-            Add List
-          </Button>
-        </Space.Compact>
+        <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+          <Space.Compact style={{ width: "100%" }}>
+            <Input
+              placeholder="New list name"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              onPressEnter={handleAddList}
+            />
+            <Input
+              placeholder="Rating"
+              value={newListRating}
+              onChange={(e) => {
+                setNewListRating(e.target.value);
+                setNewListRatingError("");
+              }}
+              onBlur={() => {
+                const parsed = parseFloat(newListRating);
+                if (!Number.isNaN(parsed) && /^\d+(\.\d{1,2})?$/.test(newListRating.trim())) {
+                  setNewListRating(parsed.toFixed(2));
+                }
+              }}
+              onPressEnter={handleAddList}
+              style={{ width: 90, textAlign: "right" }}
+              status={newListRatingError ? "error" : ""}
+            />
+            <Button icon={<PlusOutlined />} onClick={handleAddList}>
+              Add List
+            </Button>
+          </Space.Compact>
+          {newListRatingError && (
+            <Typography.Text type="danger" style={{ fontSize: 11 }}>
+              Rating: {newListRatingError}
+            </Typography.Text>
+          )}
+        </div>
       </Drawer>
 
       {/* Move-items modal (manage only) */}
