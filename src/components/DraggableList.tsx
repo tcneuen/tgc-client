@@ -112,6 +112,7 @@ interface DraggableListProps {
   startingRating?: number;
   isLoading?: boolean;
   isDropTarget?: boolean;
+  dropIndicatorIndex?: number;
 }
 
 export default function DraggableList({
@@ -125,6 +126,7 @@ export default function DraggableList({
   startingRating,
   isLoading = false,
   isDropTarget = false,
+  dropIndicatorIndex,
 }: DraggableListProps) {
   const [editingItem, setEditingItem] = useState<ApiItem | null>(null);
   const [ratingItem, setRatingItem] = useState<ApiItem | null>(null);
@@ -229,6 +231,30 @@ export default function DraggableList({
                 </div>
               );
             })}
+            {dropIndicatorIndex !== undefined && (() => {
+              const visibleItem = virtualizer.getVirtualItems().find((v) => v.index === dropIndicatorIndex);
+              const top = visibleItem
+                ? visibleItem.start
+                : dropIndicatorIndex >= filteredItems.length
+                ? virtualizer.getTotalSize()
+                : dropIndicatorIndex * 110;
+              return (
+                <div
+                  key="drop-indicator"
+                  style={{
+                    position: "absolute",
+                    left: 8,
+                    right: 8,
+                    top,
+                    height: 2,
+                    backgroundColor: token.colorPrimary,
+                    borderRadius: 1,
+                    zIndex: 20,
+                    pointerEvents: "none",
+                  }}
+                />
+              );
+            })()}
           </div>
         </SortableContext>
       </div>

@@ -33,6 +33,7 @@ function App() {
   const [rankingsOpen, setRankingsOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [dragOverListId, setDragOverListId] = useState<string | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{ listId: string; index: number } | null>(null);
 
   const { activeCollectionId, selectCollection } = useCollectionStore();
   const logout = useAuthStore((s) => s.logout);
@@ -60,28 +61,60 @@ function App() {
     setActiveId(Number(event.active.id));
   };
 
+  // Helper: get items in a list in linked-list order (handles orphan items)
+  const listItemsOrdered = (listId: string) => {
+    const listItems = items.filter((i) => i.listId === listId);
+    const byId = new Map(listItems.map((i) => [i.id, i]));
+    const visited = new Set<number>();
+    const result: typeof listItems = [];
+    const heads = listItems.filter(
+      (i) => i.prevId === null || !byId.has(i.prevId),
+    );
+    for (const head of heads) {
+      let cur: typeof listItems[0] | undefined = head;
+      while (cur && !visited.has(cur.id)) {
+        result.push(cur);
+        visited.add(cur.id);
+        cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
+      }
+    }
+    for (const i of listItems) {
+      if (!visited.has(i.id)) result.push(i);
+    }
+    return result;
+  };
+
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
-    if (!over || !activeCollection) { setDragOverListId(null); return; }
+    if (!over || !activeCollection) { setDragOverListId(null); setDropIndicator(null); return; }
     const activeItem = items.find((i) => i.id === Number(active.id));
-    if (!activeItem) { setDragOverListId(null); return; }
+    if (!activeItem) { setDragOverListId(null); setDropIndicator(null); return; }
     const overId = String(over.id);
     const overList = activeCollection.lists.find((l) => l.id === overId);
     if (overList) {
-      setDragOverListId(overList.id !== activeItem.listId ? overList.id : null);
+      const isCross = overList.id !== activeItem.listId;
+      setDragOverListId(isCross ? overList.id : null);
+      const targetItems = listItemsOrdered(overList.id).filter((i) => i.id !== Number(active.id));
+      setDropIndicator({ listId: overList.id, index: targetItems.length });
       return;
     }
     const overItem = items.find((i) => i.id === Number(overId));
     if (overItem) {
-      setDragOverListId(overItem.listId !== activeItem.listId ? overItem.listId : null);
+      const isCross = overItem.listId !== activeItem.listId;
+      setDragOverListId(isCross ? overItem.listId : null);
+      const targetItems = listItemsOrdered(overItem.listId).filter((i) => i.id !== Number(active.id));
+      const idx = targetItems.findIndex((i) => i.id === overItem.id);
+      setDropIndicator({ listId: overItem.listId, index: idx >= 0 ? idx : targetItems.length });
       return;
     }
     setDragOverListId(null);
+    setDropIndicator(null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveId(null);
     setDragOverListId(null);
+    setDropIndicator(null);
     const { active, over } = event;
     if (!over || !activeCollection || !activeCollectionId) return;
 
@@ -89,29 +122,6 @@ function App() {
     const overId = String(over.id);
     const activeItem = items.find((i) => i.id === activeItemId);
     if (!activeItem) return;
-
-    // Helper: get items in a list in linked-list order (handles orphan items)
-    const listItemsOrdered = (listId: string) => {
-      const listItems = items.filter((i) => i.listId === listId);
-      const byId = new Map(listItems.map((i) => [i.id, i]));
-      const visited = new Set<number>();
-      const result: typeof listItems = [];
-      const heads = listItems.filter(
-        (i) => i.prevId === null || !byId.has(i.prevId),
-      );
-      for (const head of heads) {
-        let cur: typeof listItems[0] | undefined = head;
-        while (cur && !visited.has(cur.id)) {
-          result.push(cur);
-          visited.add(cur.id);
-          cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
-        }
-      }
-      for (const i of listItems) {
-        if (!visited.has(i.id)) result.push(i);
-      }
-      return result;
-    };
 
     // Dropping on a list container (droppable)
     const isOverListContainer = activeCollection.lists.some(
@@ -188,7 +198,7 @@ function App() {
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => { setActiveId(null); setDragOverListId(null); }}
+      onDragCancel={() => { setActiveId(null); setDragOverListId(null); setDropIndicator(null); }}
     >
       {/* Header: action buttons left, collection controls right */}
       <Row
@@ -278,6 +288,7 @@ function App() {
                     droppableId={listConfig.id}
                     isLoading={itemsFetching}
                     isDropTarget={dragOverListId === listConfig.id}
+                    dropIndicatorIndex={dropIndicator?.listId === listConfig.id ? dropIndicator.index : undefined}
                     onDelete={(id) =>
                       deleteItem.mutate({
                         collectionId: activeCollectionId,
