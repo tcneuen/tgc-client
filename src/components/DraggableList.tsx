@@ -110,6 +110,7 @@ interface DraggableListProps {
   onDelete: (id: number) => void;
   backgroundColor?: string;
   startingRating?: number;
+  isLoading?: boolean;
 }
 
 export default function DraggableList({
@@ -121,6 +122,7 @@ export default function DraggableList({
   onDelete,
   backgroundColor = "#ffffff",
   startingRating,
+  isLoading = false,
 }: DraggableListProps) {
   const [editingItem, setEditingItem] = useState<ApiItem | null>(null);
   const [ratingItem, setRatingItem] = useState<ApiItem | null>(null);
@@ -216,7 +218,7 @@ export default function DraggableList({
                     onDelete={onDelete}
                     onEdit={setEditingItem}
                     onRate={setRatingItem}
-                    rating={item.rating ?? undefined}
+                    rating={isLoading ? undefined : (item.rating ?? undefined)}
                   />
                 </div>
               );

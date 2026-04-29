@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Card, Col, Empty, Row, Select, Space, Spin } from "antd";
-import { LogoutOutlined, OrderedListOutlined, SettingOutlined } from "@ant-design/icons";
+import { LogoutOutlined, OrderedListOutlined, ReloadOutlined, SettingOutlined } from "@ant-design/icons";
 import useAuthStore from "./store/useAuthStore";
 import {
   DndContext,
@@ -37,7 +37,7 @@ function App() {
   const qc = useQueryClient();
 
   const { data: collections = [], isLoading: collectionsLoading } = useCollections();
-  const { data: items = [] } = useItems(activeCollectionId);
+  const { data: items = [], isFetching: itemsFetching } = useItems(activeCollectionId);
   const deleteItem = useDeleteItem();
   const moveItem = useMoveItem();
 
@@ -196,6 +196,15 @@ function App() {
               >
                 Rankings
               </Button>
+              <Button
+                icon={<ReloadOutlined spin={itemsFetching} />}
+                onClick={() => {
+                  if (activeCollectionId) {
+                    void qc.invalidateQueries({ queryKey: itemsKey(activeCollectionId) });
+                  }
+                }}
+                title="Refresh items"
+              />
             </Space>
           )}
         </Col>
@@ -243,6 +252,7 @@ function App() {
                     listId={listConfig.id}
                     title={listConfig.name}
                     droppableId={listConfig.id}
+                    isLoading={itemsFetching}
                     onDelete={(id) =>
                       deleteItem.mutate({
                         collectionId: activeCollectionId,
