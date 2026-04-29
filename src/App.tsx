@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Card, Col, Empty, Row, Select, Space } from "antd";
-import { SettingOutlined } from "@ant-design/icons";
+import { OrderedListOutlined, SettingOutlined } from "@ant-design/icons";
 import {
   DndContext,
   closestCenter,
@@ -16,6 +16,7 @@ import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import AddItemDrawer from "./components/AddItemDrawer";
 import DraggableList from "./components/DraggableList";
 import CollectionDrawer from "./components/CollectionDrawer";
+import RankingsModal from "./components/RankingsModal";
 import useBearStore from "./store/useBearStore";
 import useCollectionStore from "./store/useCollectionStore";
 import { seedList } from "./utils/seed";
@@ -25,6 +26,7 @@ function App() {
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [collectionDrawerOpen, setCollectionDrawerOpen] = useState(false);
   const [manageDrawerOpen, setManageDrawerOpen] = useState(false);
+  const [rankingsOpen, setRankingsOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
 
   const { list, deleteItem, reorderItemsInList, moveItemToList } =
@@ -126,6 +128,12 @@ function App() {
               >
                 Seed 10 Random Items
               </Button>
+              <Button
+                icon={<OrderedListOutlined />}
+                onClick={() => setRankingsOpen(true)}
+              >
+                Rankings
+              </Button>
             </Space>
           )}
         </Col>
@@ -200,6 +208,13 @@ function App() {
           </Card>
         ) : null}
       </DragOverlay>
+
+      <RankingsModal
+        open={rankingsOpen}
+        onClose={() => setRankingsOpen(false)}
+        collection={activeCollection}
+        items={collectionItems}
+      />
 
       {/* Add Item Drawer */}
       {activeCollection && (
