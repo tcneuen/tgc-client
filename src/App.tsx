@@ -294,7 +294,7 @@ function App() {
         </>
       )}
 
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeId ? (
           <Card
             size="small"

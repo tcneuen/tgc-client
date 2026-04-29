@@ -34,7 +34,7 @@ function SortableItem({ item, index, onDelete, onEdit, onRate, rating }: Sortabl
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? undefined : transition,
     opacity: isDragging ? 0 : 1,
   };
 
