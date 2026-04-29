@@ -102,9 +102,17 @@ function App() {
     if (overItem) {
       const isCross = overItem.listId !== activeItem.listId;
       setDragOverListId(isCross ? overItem.listId : null);
-      const targetItems = listItemsOrdered(overItem.listId).filter((i) => i.id !== Number(active.id));
-      const idx = targetItems.findIndex((i) => i.id === overItem.id);
-      setDropIndicator({ listId: overItem.listId, index: idx >= 0 ? idx : targetItems.length });
+      if (isCross) {
+        // Target list doesn't contain the active item, no need to filter
+        const targetItems = listItemsOrdered(overItem.listId);
+        const idx = targetItems.findIndex((i) => i.id === overItem.id);
+        setDropIndicator({ listId: overItem.listId, index: idx >= 0 ? idx : targetItems.length });
+      } else {
+        // Same list: index must be against the full list (active item still rendered)
+        const allItems = listItemsOrdered(overItem.listId);
+        const idx = allItems.findIndex((i) => i.id === overItem.id);
+        setDropIndicator({ listId: overItem.listId, index: idx >= 0 ? idx : allItems.length });
+      }
       return;
     }
     setDragOverListId(null);

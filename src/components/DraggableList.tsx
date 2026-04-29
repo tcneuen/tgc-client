@@ -4,7 +4,7 @@ import { DeleteOutlined, EditOutlined, StarOutlined } from "@ant-design/icons";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
-  verticalListSortingStrategy,
+  type SortingStrategy,
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -12,6 +12,13 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ApiItem } from "../types/api";
 import EditItemDrawer from "./EditItemDrawer";
 import RateItemModal from "./RateItemModal";
+
+// Closes the gap where the dragged item was (shifts items below it up)
+// but does NOT open a gap at the hover position.
+const collapseSourceStrategy: SortingStrategy = ({ activeIndex, activeNodeRect, index }) => {
+  if (activeNodeRect == null || index <= activeIndex) return null;
+  return { x: 0, y: -activeNodeRect.height, scaleX: 1, scaleY: 1 };
+};
 
 interface SortableItemProps {
   item: ApiItem;
@@ -196,7 +203,7 @@ export default function DraggableList({
       >
         <SortableContext
           items={filteredItems.map((i) => i.id)}
-          strategy={verticalListSortingStrategy}
+          strategy={collapseSourceStrategy}
         >
           <div
             style={{
