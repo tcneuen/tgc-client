@@ -137,6 +137,7 @@ function ListRow({
 
       {!renaming && (
         <>
+          {!list.protected && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <Input
               size="small"
@@ -152,6 +153,7 @@ function ListRow({
               <Typography.Text type="danger" style={{ fontSize: 10 }}>{ratingError}</Typography.Text>
             )}
           </div>
+          )}
           <ColorPicker
             size="small"
             value={list.backgroundColor ?? "#ffffff"}
