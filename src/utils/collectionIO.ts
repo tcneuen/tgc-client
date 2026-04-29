@@ -70,8 +70,15 @@ export function exportCollection(
 
 export interface ParsedImport {
   name: string;
-  lists: { name: string; protected: boolean; backgroundColor?: string; startingRating?: number }[];
-  items: { name: string; description: string; listIndex: number }[];
+  defaultListId: string | null;
+  lists: {
+    id: string;
+    name: string;
+    protected: boolean;
+    backgroundColor?: string;
+    startingRating?: number;
+    items: { name: string; description: string }[];
+  }[];
 }
 
 export function parseCollectionFile(
@@ -88,19 +95,15 @@ export function parseCollectionFile(
 
     const parsed: ParsedImport = {
       name: data.collection.name,
+      defaultListId: data.collection.defaultListId ?? null,
       lists: data.lists.map((l) => ({
+        id: l.id,
         name: l.name,
         protected: l.protected,
         backgroundColor: l.backgroundColor ?? undefined,
         startingRating: l.startingRating ?? undefined,
+        items: (l.items ?? []).map((i) => ({ name: i.name, description: i.description })),
       })),
-      items: data.lists.flatMap((l, listIndex) =>
-        (l.items ?? []).map((i) => ({
-          name: i.name,
-          description: i.description,
-          listIndex,
-        })),
-      ),
     };
 
     onSuccess(parsed);
