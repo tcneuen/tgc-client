@@ -4,7 +4,6 @@ import { DeleteOutlined, EditOutlined, StarOutlined } from "@ant-design/icons";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
-  type SortingStrategy,
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -13,12 +12,7 @@ import type { ApiItem } from "../types/api";
 import EditItemDrawer from "./EditItemDrawer";
 import RateItemModal from "./RateItemModal";
 
-// Closes the gap where the dragged item was (shifts items below it up)
-// but does NOT open a gap at the hover position.
-const collapseSourceStrategy: SortingStrategy = ({ activeIndex, activeNodeRect, index }) => {
-  if (activeNodeRect == null || index <= activeIndex) return null;
-  return { x: 0, y: -activeNodeRect.height, scaleX: 1, scaleY: 1 };
-};
+// No collapseSourceStrategy needed — fixed-height cards use virtualizer always
 
 interface SortableItemProps {
   item: ApiItem;
@@ -55,16 +49,21 @@ function SortableItem({ item, index, onDelete, onEdit, onRate, rating }: Sortabl
             cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
           },
+          body: {
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+            textOverflow: "ellipsis",
+          },
         }}
         title={
           <div
             {...attributes}
             {...listeners}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", minWidth: 0 }}
           >
-            <span>{`#${index + 1}: ${item.name}`}</span>
+            <span style={{ overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>{`#${index + 1}: ${item.name}`}</span>
             {rating !== undefined && (
-              <span style={{ fontSize: 11, fontWeight: "normal", color: "#8c8c8c", marginLeft: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: "normal", color: "#8c8c8c", marginLeft: 8, flexShrink: 0 }}>
                 {rating.toFixed(2)}
               </span>
             )}
@@ -102,7 +101,7 @@ function SortableItem({ item, index, onDelete, onEdit, onRate, rating }: Sortabl
           </div>
         }
       >
-        <div>{item.description}</div>
+        <div style={{ overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.description}</div>
       </Card>
     </div>
   );
@@ -147,10 +146,12 @@ export default function DraggableList({
     (i) => i.collectionId === collectionId && i.listId === listId,
   );
 
+  const CARD_HEIGHT = 88; // fixed height per card (px)
+
   const virtualizer = useVirtualizer({
     count: filteredItems.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 110,
+    estimateSize: () => CARD_HEIGHT,
     overscan: 5,
   });
 
@@ -196,14 +197,14 @@ export default function DraggableList({
         )}
       </div>
 
-      {/* Virtualized scroll area */}
+      {/* Scroll area */}
       <div
         ref={setRefs}
         style={{ flex: 1, overflowY: "auto" }}
       >
         <SortableContext
           items={filteredItems.map((i) => i.id)}
-          strategy={collapseSourceStrategy}
+          strategy={() => ({ x: 0, y: 0, scaleX: 1, scaleY: 1 })}
         >
           <div
             style={{
@@ -239,12 +240,9 @@ export default function DraggableList({
               );
             })}
             {dropIndicatorIndex !== undefined && (() => {
-              const visibleItem = virtualizer.getVirtualItems().find((v) => v.index === dropIndicatorIndex);
-              const top = visibleItem
-                ? visibleItem.start
-                : dropIndicatorIndex >= filteredItems.length
+              const top = dropIndicatorIndex >= filteredItems.length
                 ? virtualizer.getTotalSize()
-                : dropIndicatorIndex * 110;
+                : dropIndicatorIndex * CARD_HEIGHT;
               return (
                 <div
                   key="drop-indicator"
