@@ -20,8 +20,6 @@ export interface ApiItem {
   name: string;
   description: string;
   rating: number | null;
-  prevId: number | null;
-  nextId: number | null;
   collectionId: string;
   listId: string;
 }

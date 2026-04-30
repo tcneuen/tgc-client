@@ -35,35 +35,11 @@ export default function RateItemModal({ item, open, onClose }: Props) {
   const collection = collections.find((c) => c.id === item.collectionId);
   if (!collection) return null;
 
-  // Items in a given list excluding the item being rated, sorted by linked-list order
-  const getListItems = (listId: string) => {
-    const listItems = allItems.filter(
-      (i) =>
-        i.collectionId === collection.id &&
-        i.listId === listId &&
-        i.id !== item.id,
-    );
-    const byId = new Map(listItems.map((i) => [i.id, i]));
-    const visited = new Set<number>();
-    const result: typeof listItems = [];
-    // Walk each chain from its head; handles orphans (no links) as single-element chains
-    const heads = listItems.filter(
-      (i) => i.prevId === null || !byId.has(i.prevId),
-    );
-    for (const head of heads) {
-      let cur: typeof listItems[0] | undefined = head;
-      while (cur && !visited.has(cur.id)) {
-        result.push(cur);
-        visited.add(cur.id);
-        cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
-      }
-    }
-    // Append any broken-chain items
-    for (const i of listItems) {
-      if (!visited.has(i.id)) result.push(i);
-    }
-    return result;
-  };
+  // Items in a given list excluding the item being rated, sorted by rating desc
+  const getListItems = (listId: string) =>
+    allItems
+      .filter((i) => i.collectionId === collection.id && i.listId === listId && i.id !== item.id)
+      .sort((a, b) => (b.rating ?? -Infinity) - (a.rating ?? -Infinity));
 
   const handleSelectList = () => {
     if (!selectedListId) return;

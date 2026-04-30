@@ -61,28 +61,11 @@ function App() {
     setActiveId(Number(event.active.id));
   };
 
-  // Helper: get items in a list in linked-list order (handles orphan items)
-  const listItemsOrdered = (listId: string) => {
-    const listItems = items.filter((i) => i.listId === listId);
-    const byId = new Map(listItems.map((i) => [i.id, i]));
-    const visited = new Set<number>();
-    const result: typeof listItems = [];
-    const heads = listItems.filter(
-      (i) => i.prevId === null || !byId.has(i.prevId),
-    );
-    for (const head of heads) {
-      let cur: typeof listItems[0] | undefined = head;
-      while (cur && !visited.has(cur.id)) {
-        result.push(cur);
-        visited.add(cur.id);
-        cur = cur.nextId != null ? byId.get(cur.nextId) : undefined;
-      }
-    }
-    for (const i of listItems) {
-      if (!visited.has(i.id)) result.push(i);
-    }
-    return result;
-  };
+  // Sort items in a list by rating descending (null = unrated, goes to end)
+  const listItemsSorted = (listId: string, excludeId?: number) =>
+    items
+      .filter((i) => i.listId === listId && i.id !== excludeId)
+      .sort((a, b) => (b.rating ?? -Infinity) - (a.rating ?? -Infinity));
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
@@ -94,7 +77,7 @@ function App() {
     if (overList) {
       const isCross = overList.id !== activeItem.listId;
       setDragOverListId(isCross ? overList.id : null);
-      const targetItems = listItemsOrdered(overList.id).filter((i) => i.id !== Number(active.id));
+      const targetItems = listItemsSorted(overList.id, Number(active.id));
       setDropIndicator({ listId: overList.id, index: targetItems.length });
       return;
     }
@@ -102,17 +85,11 @@ function App() {
     if (overItem) {
       const isCross = overItem.listId !== activeItem.listId;
       setDragOverListId(isCross ? overItem.listId : null);
-      if (isCross) {
-        // Target list doesn't contain the active item, no need to filter
-        const targetItems = listItemsOrdered(overItem.listId);
-        const idx = targetItems.findIndex((i) => i.id === overItem.id);
-        setDropIndicator({ listId: overItem.listId, index: idx >= 0 ? idx : targetItems.length });
-      } else {
-        // Same list: index must be against the full list (active item still rendered)
-        const allItems = listItemsOrdered(overItem.listId);
-        const idx = allItems.findIndex((i) => i.id === overItem.id);
-        setDropIndicator({ listId: overItem.listId, index: idx >= 0 ? idx : allItems.length });
-      }
+      const sortedList = isCross
+        ? listItemsSorted(overItem.listId)
+        : listItemsSorted(overItem.listId, Number(active.id));
+      const idx = sortedList.findIndex((i) => i.id === overItem.id);
+      setDropIndicator({ listId: overItem.listId, index: idx >= 0 ? idx : sortedList.length });
       return;
     }
     setDragOverListId(null);
@@ -139,53 +116,20 @@ function App() {
     if (isOverListContainer) {
       if (activeItem.listId !== overId) {
         // Move to tail of the target list
-        const targetItems = listItemsOrdered(overId).filter(
-          (i) => i.id !== activeItemId,
-        );
-        const afterId =
-          targetItems.length > 0
-            ? targetItems[targetItems.length - 1].id
-            : null;
-        moveItem.mutate({
-          collectionId: activeCollectionId,
-          itemId: activeItemId,
-          listId: overId,
-          afterId,
-        });
+        const targetItems = listItemsSorted(overId);
+        const afterId = targetItems.length > 0 ? targetItems[targetItems.length - 1].id : null;
+        moveItem.mutate({ collectionId: activeCollectionId, itemId: activeItemId, listId: overId, afterId });
       }
     } else {
       const overItemId = Number(overId);
       const overItem = items.find((i) => i.id === overItemId);
       if (!overItem || activeItem.id === overItem.id) return;
 
-      if (activeItem.listId === overItem.listId) {
-        // Reorder within same list — place immediately before overItem
-        const listItems = listItemsOrdered(activeItem.listId).filter(
-          (i) => i.id !== activeItemId,
-        );
-        const toIdx = listItems.findIndex((i) => i.id === overItemId);
-        // Place before overItem means afterId = item before it (or null if head)
-        const afterId = toIdx > 0 ? listItems[toIdx - 1].id : null;
-        moveItem.mutate({
-          collectionId: activeCollectionId,
-          itemId: activeItemId,
-          listId: activeItem.listId,
-          afterId,
-        });
-      } else {
-        // Move to different list, place before the over item
-        const listItems = listItemsOrdered(overItem.listId).filter(
-          (i) => i.id !== activeItemId,
-        );
-        const toIdx = listItems.findIndex((i) => i.id === overItemId);
-        const afterId = toIdx > 0 ? listItems[toIdx - 1].id : null;
-        moveItem.mutate({
-          collectionId: activeCollectionId,
-          itemId: activeItemId,
-          listId: overItem.listId,
-          afterId,
-        });
-      }
+      const targetListId = overItem.listId;
+      const sortedExcluding = listItemsSorted(targetListId, activeItemId);
+      const toIdx = sortedExcluding.findIndex((i) => i.id === overItemId);
+      const afterId = toIdx > 0 ? sortedExcluding[toIdx - 1].id : null;
+      moveItem.mutate({ collectionId: activeCollectionId, itemId: activeItemId, listId: targetListId, afterId });
     }
   };
 

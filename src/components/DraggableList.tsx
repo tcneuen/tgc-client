@@ -141,10 +141,10 @@ export default function DraggableList({
 
   const { setNodeRef: setDroppableRef } = useDroppable({ id: droppableId });
 
-  // Items arrive from the server already in linked-list order
-  const filteredItems = items.filter(
-    (i) => i.collectionId === collectionId && i.listId === listId,
-  );
+  // Sort items by rating descending; null ratings (unrated list) go to end
+  const filteredItems = items
+    .filter((i) => i.collectionId === collectionId && i.listId === listId)
+    .sort((a, b) => (b.rating ?? -Infinity) - (a.rating ?? -Infinity));
 
   const CARD_HEIGHT = 88; // fixed height per card (px)
 
