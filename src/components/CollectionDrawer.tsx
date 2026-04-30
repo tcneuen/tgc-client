@@ -20,7 +20,7 @@ import {
   SaveOutlined,
 } from "@ant-design/icons";
 import type { ApiCollection, ApiList } from "../types/api";
-import useCollectionStore from "../store/useCollectionStore";
+import { useNavigate } from "react-router-dom";
 import {
   useCreateCollection,
   useUpdateCollection,
@@ -237,7 +237,7 @@ export default function CollectionDrawer({
   onExport,
   onImport,
 }: CollectionDrawerProps) {
-  const { selectCollection, clearSelection } = useCollectionStore();
+  const navigate = useNavigate();
   const createCollection = useCreateCollection();
   const updateCollection = useUpdateCollection();
   const deleteCollection = useDeleteCollection();
@@ -373,7 +373,7 @@ export default function CollectionDrawer({
         { name, draftLists },
         {
           onSuccess: (newId) => {
-            selectCollection(newId);
+            navigate(`/collections/${newId}`);
             handleClose();
           },
         },
@@ -393,7 +393,7 @@ export default function CollectionDrawer({
     if (!collection) return;
     deleteCollection.mutate(collection.id, {
       onSuccess: () => {
-        clearSelection();
+        navigate('/');
         onClose();
       },
     });

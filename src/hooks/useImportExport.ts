@@ -6,14 +6,13 @@ import type { ApiCollection, ApiItem } from "../types/api";
 import { apiFetch } from "../utils/api";
 import { COLLECTIONS_KEY } from "./useCollections";
 import { itemsKey } from "./useItems";
-import useCollectionStore from "../store/useCollectionStore";
 
 export function useImportExport(
   activeCollection: ApiCollection | null,
   items: ApiItem[],
+  navigateToCollection: (id: string) => void,
 ) {
   const qc = useQueryClient();
-  const { selectCollection } = useCollectionStore();
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -43,7 +42,7 @@ export function useImportExport(
 
           await qc.invalidateQueries({ queryKey: COLLECTIONS_KEY });
           await qc.invalidateQueries({ queryKey: itemsKey(col.id) });
-          selectCollection(col.id);
+          navigateToCollection(col.id);
           message.success(`Imported "${parsed.name}"`);
         } catch (err) {
           message.error("Import failed");

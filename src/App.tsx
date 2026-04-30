@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, Card, Col, Empty, Row, Select, Space, Spin } from "antd";
 import { LogoutOutlined, OrderedListOutlined, ReloadOutlined, SettingOutlined } from "@ant-design/icons";
 import useAuthStore from "./store/useAuthStore";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   DndContext,
   closestCenter,
@@ -19,7 +20,6 @@ import AddItemDrawer from "./components/AddItemDrawer";
 import DraggableList from "./components/DraggableList";
 import CollectionDrawer from "./components/CollectionDrawer";
 import RankingsModal from "./components/RankingsModal";
-import useCollectionStore from "./store/useCollectionStore";
 import { seedList } from "./utils/seed";
 import { useImportExport } from "./hooks/useImportExport";
 import { useCollections } from "./hooks/useCollections";
@@ -35,12 +35,13 @@ function App() {
   const [dragOverListId, setDragOverListId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{ listId: string; index: number } | null>(null);
 
-  const { activeCollectionId, selectCollection } = useCollectionStore();
+  const navigate = useNavigate();
+  const { collectionId: activeCollectionId } = useParams<{ collectionId: string }>();
   const logout = useAuthStore((s) => s.logout);
   const qc = useQueryClient();
 
   const { data: collections = [], isLoading: collectionsLoading } = useCollections();
-  const { data: items = [], isFetching: itemsFetching } = useItems(activeCollectionId);
+  const { data: items = [], isFetching: itemsFetching } = useItems(activeCollectionId ?? null);
   const deleteItem = useDeleteItem();
   const moveItem = useMoveItem();
 
@@ -48,7 +49,7 @@ function App() {
     collections.find((c) => c.id === activeCollectionId) ?? null;
 
   const { importInputRef, handleExport, handleImport, openImportDialog } =
-    useImportExport(activeCollection, items);
+    useImportExport(activeCollection, items, (id) => navigate(`/collections/${id}`));
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -202,7 +203,7 @@ function App() {
               <Select
                 placeholder="Select a collection"
                 value={activeCollectionId ?? undefined}
-                onChange={selectCollection}
+                onChange={(id) => navigate(`/collections/${id}`)}
                 style={{ minWidth: 220 }}
                 options={collections.map((c) => ({ value: c.id, label: c.name }))}
               />
